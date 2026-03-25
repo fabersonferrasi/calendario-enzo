@@ -16,10 +16,9 @@ const parentSelect = `
     p.role_key AS roleKey,
     p.color_key AS colorKey
   FROM parents p
-  ORDER BY p.id
 `;
 
-const listParents = () => db.prepare(parentSelect).all();
+const listParents = () => db.prepare(`${parentSelect} ORDER BY p.id`).all();
 
 const listWeeklyRules = () => {
   const rules = db.prepare(`
