@@ -2,15 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, BookOpen, Heart, Activity, Star } from 'lucide-react';
 
 const App = () => {
-  // Setup for PWA-like behavior on mobile devices
+  // Configuração para comportamento de PWA em dispositivos móveis
   useEffect(() => {
-    // Set theme color for mobile status bar
+    // Define a cor da barra de status no telemóvel
     const metaThemeColor = document.createElement('meta');
     metaThemeColor.name = "theme-color";
     metaThemeColor.content = "#0f172a"; // slate-900
     document.head.appendChild(metaThemeColor);
 
-    // iOS (Safari) specific configurations
+    // Configurações específicas para iOS (Safari)
     const metaAppleMobile = document.createElement('meta');
     metaAppleMobile.name = "apple-mobile-web-app-capable";
     metaAppleMobile.content = "yes";
@@ -30,7 +30,7 @@ const App = () => {
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
 
-  // Helper to identify the 2nd weekend of the month (Mother's special weekend)
+  // Identifica o 2º fim de semana do mês (Fim de semana especial da Mãe)
   const isSecondWeekend = (date) => {
     const month = date.getMonth();
     const year = date.getFullYear();
@@ -39,12 +39,12 @@ const App = () => {
     for (let d = 1; d <= 31; d++) {
       const tempDate = new Date(year, month, d);
       if (tempDate.getMonth() !== month) break;
-      if (tempDate.getDay() === 5) { // Friday
+      if (tempDate.getDay() === 5) { // Sexta-feira
         fridayCount++;
         if (fridayCount === 2) {
           const secondFriday = d;
           const currentDay = date.getDate();
-          // From Friday (pickup) to Sunday (overnight)
+          // De Sexta (entrega) a Domingo (pernoita)
           return currentDay >= secondFriday && currentDay <= secondFriday + 2;
         }
       }
@@ -63,8 +63,8 @@ const App = () => {
     let pickup = "";
     let isTransition = false;
 
-    // Routine logic based on the user's requirements
-    if (day === 1) { // Monday
+    // Lógica de rotina baseada no pedido
+    if (day === 1) { // Segunda
       parent = "Transição (Pai ➔ Mãe)";
       colorClass = "bg-slate-50 border-slate-200";
       stripeColor = "bg-gradient-to-r from-blue-500 to-rose-500";
@@ -74,7 +74,7 @@ const App = () => {
       activities.push({ time: "19:00h", task: "Jiu-Jitsu", icon: <Activity size={14}/> });
       pickup = "Mãe busca às 16:00h";
     } 
-    else if (day === 2) { // Tuesday
+    else if (day === 2) { // Terça
       parent = "Mãe (Juliana)";
       colorClass = "bg-rose-50 border-rose-200";
       stripeColor = "bg-rose-500";
@@ -82,7 +82,7 @@ const App = () => {
       activities.push({ time: "13:00h", task: "Reforço Pedagógico", icon: <BookOpen size={14}/> });
       activities.push({ time: "13:50h", task: "Saída do Reforço", icon: <Clock size={14}/> });
     }
-    else if (day === 3) { // Wednesday
+    else if (day === 3) { // Quarta
       parent = "Transição (Mãe ➔ Pai)";
       colorClass = "bg-slate-50 border-slate-200";
       stripeColor = "bg-gradient-to-r from-rose-500 to-blue-500";
@@ -93,7 +93,7 @@ const App = () => {
       activities.push({ time: "19:00h", task: "Jiu-Jitsu", icon: <Activity size={14}/> });
       pickup = "Pai busca às 14:00h";
     }
-    else if (day === 4) { // Thursday
+    else if (day === 4) { // Quinta
       parent = "Transição (Pai ➔ Mãe)";
       colorClass = "bg-slate-50 border-slate-200";
       stripeColor = "bg-gradient-to-r from-blue-500 to-rose-500";
@@ -103,7 +103,7 @@ const App = () => {
       activities.push({ time: "16:00h", task: "Psicóloga", icon: <Heart size={14}/> });
       pickup = "Mãe busca às 12:30h";
     }
-    else if (day === 5) { // Friday
+    else if (day === 5) { // Sexta
       if (secondWE) {
         parent = "Mãe (FDS Especial)";
         colorClass = "bg-rose-100 border-rose-300 ring-2 ring-amber-400 ring-inset";
@@ -123,7 +123,7 @@ const App = () => {
         pickup = "Pai busca às 12:30h";
       }
     }
-    else if (day === 6 || day === 0) { // Saturday and Sunday
+    else if (day === 6 || day === 0) { // Sábado e Domingo
       if (secondWE) {
         parent = "Mãe (Juliana)";
         colorClass = "bg-rose-50 border-rose-200";
@@ -207,7 +207,7 @@ const App = () => {
     <div className="min-h-screen bg-slate-100 font-sans text-slate-900 pb-10">
       <div className="max-w-7xl mx-auto space-y-4">
         
-        {/* Compact Header for Mobile */}
+        {/* Cabeçalho Compacto */}
         <div className="bg-white md:rounded-3xl shadow-xl border-b md:border border-slate-200 overflow-hidden">
           <div className="bg-slate-900 p-4 md:p-8 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -237,7 +237,7 @@ const App = () => {
             </div>
           </div>
 
-          {/* Optimized Legend for Mobile */}
+          {/* Legenda Otimizada */}
           <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-center gap-3 md:gap-6">
             <div className="flex items-center gap-2 px-3 py-1 bg-rose-50 border border-rose-200 rounded-full shadow-sm">
               <div className="w-3 h-3 rounded-full bg-rose-500"></div>
@@ -253,7 +253,7 @@ const App = () => {
             </div>
           </div>
 
-          {/* Calendar Grid */}
+          {/* Grelha do Calendário */}
           <div className="p-2 md:p-6 bg-white overflow-x-auto">
             <div className="min-w-[700px] md:min-w-[1000px]">
               <div className="grid grid-cols-7 gap-1 md:gap-3 mb-2">
@@ -270,7 +270,7 @@ const App = () => {
             </div>
           </div>
 
-          {/* Routine Highlights Footer */}
+          {/* Rodapé de Destaques */}
           <div className="bg-slate-50 p-4 border-t border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
               <p className="font-black text-rose-600 text-[8px] uppercase">Turnos Juliana</p>
@@ -292,7 +292,7 @@ const App = () => {
         </div>
         
         <p className="text-center text-slate-400 text-[10px] px-4">
-          Para instalar: No iPhone use "Compartilhar {' > '} Adicionar à Tela de Início". No Android use os "Três pontos {' > '} Instalar".
+          Para instalar: No iPhone use "Compartilhar {' > '} Adicionar ao Ecrã Principal". No Android use os "Três pontos {' > '} Instalar".
         </p>
       </div>
     </div>
