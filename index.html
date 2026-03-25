@@ -2,11 +2,27 @@
 <html lang="pt-pt">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Agenda do Enzo</title>
-    <!-- Tailwind CSS CDN para renderização rápida -->
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Agenda Enzo" />
+    
+    <!-- Favicon / Icon (Placeholder) -->
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3652/3652191.png" />
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3652/3652191.png" />
+
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      /* Evita selecção de texto para parecer app nativa */
+      body { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+    </style>
   </head>
   <body class="bg-slate-100">
     <div id="root"></div>
