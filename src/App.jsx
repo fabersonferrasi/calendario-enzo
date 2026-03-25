@@ -1,36 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, BookOpen, Heart, Activity, Star } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, BookOpen, Heart, Activity, Star, Info, GraduationCap } from 'lucide-react';
 
 const App = () => {
-  // Configuração para comportamento de PWA em dispositivos móveis
+  const [viewDate, setViewDate] = useState(new Date(2026, 2, 1));
+  const [selectedDate, setSelectedDate] = useState(new Date(2026, 2, 25));
+
+  // Efeito para configurar meta-tags de dispositivo móvel (PWA)
   useEffect(() => {
-    // Define a cor da barra de status no telemóvel
     const metaThemeColor = document.createElement('meta');
     metaThemeColor.name = "theme-color";
-    metaThemeColor.content = "#0f172a"; // slate-900
+    metaThemeColor.content = "#0f172a";
     document.head.appendChild(metaThemeColor);
-
-    // Configurações específicas para iOS (Safari)
-    const metaAppleMobile = document.createElement('meta');
-    metaAppleMobile.name = "apple-mobile-web-app-capable";
-    metaAppleMobile.content = "yes";
-    document.head.appendChild(metaAppleMobile);
-
-    const metaAppleStatus = document.createElement('meta');
-    metaAppleStatus.name = "apple-mobile-web-app-status-bar-style";
-    metaAppleStatus.content = "black-translucent";
-    document.head.appendChild(metaAppleStatus);
   }, []);
 
-  const [viewDate, setViewDate] = useState(new Date(2026, 2, 1));
-  
   const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   const months = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
 
-  // Identifica o 2º fim de semana do mês (Fim de semana especial da Mãe)
+  // Regra do Pai: No 2º fim de semana do mês, a mãe fica com o jovem
   const isSecondWeekend = (date) => {
     const month = date.getMonth();
     const year = date.getFullYear();
@@ -44,7 +33,7 @@ const App = () => {
         if (fridayCount === 2) {
           const secondFriday = d;
           const currentDay = date.getDate();
-          // De Sexta (entrega) a Domingo (pernoita)
+          // De sexta a domingo
           return currentDay >= secondFriday && currentDay <= secondFriday + 2;
         }
       }
@@ -63,42 +52,44 @@ const App = () => {
     let pickup = "";
     let isTransition = false;
 
-    // Lógica de rotina baseada no pedido
+    // Horários Base: Entrada 07:30, Saída 12:30
+    const schoolTask = { time: "07:30h", task: "Entrada Escola", icon: <GraduationCap size={14}/> };
+
     if (day === 1) { // Segunda
-      parent = "Transição (Pai ➔ Mãe)";
+      parent = "Troca (Pai ➔ Mãe)";
       colorClass = "bg-slate-50 border-slate-200";
       stripeColor = "bg-gradient-to-r from-blue-500 to-rose-500";
       isTransition = true;
-      activities.push({ time: "07:30h", task: "Escola (Faberson leva)", icon: <BookOpen size={14}/> });
+      activities.push({ ...schoolTask, task: "Escola (Pai leva)" });
       activities.push({ time: "16:00h", task: "Saída (Juliana busca)", icon: <User size={14}/> });
       activities.push({ time: "19:00h", task: "Jiu-Jitsu", icon: <Activity size={14}/> });
-      pickup = "Mãe busca às 16:00h";
+      pickup = "Mãe busca às 16:00h após Ed. Física";
     } 
     else if (day === 2) { // Terça
       parent = "Mãe (Juliana)";
       colorClass = "bg-rose-50 border-rose-200";
       stripeColor = "bg-rose-500";
-      activities.push({ time: "07:30h", task: "Escola (Juliana leva)", icon: <BookOpen size={14}/> });
+      activities.push({ ...schoolTask, task: "Escola (Mãe leva)" });
       activities.push({ time: "13:00h", task: "Reforço Pedagógico", icon: <BookOpen size={14}/> });
-      activities.push({ time: "13:50h", task: "Saída do Reforço", icon: <Clock size={14}/> });
+      activities.push({ time: "13:50h", task: "Fim do Reforço", icon: <Clock size={14}/> });
     }
     else if (day === 3) { // Quarta
-      parent = "Transição (Mãe ➔ Pai)";
+      parent = "Troca (Mãe ➔ Pai)";
       colorClass = "bg-slate-50 border-slate-200";
       stripeColor = "bg-gradient-to-r from-rose-500 to-blue-500";
       isTransition = true;
-      activities.push({ time: "07:30h", task: "Escola (Juliana leva)", icon: <BookOpen size={14}/> });
-      activities.push({ time: "13:00h", task: "Reforço", icon: <BookOpen size={14}/> });
+      activities.push({ ...schoolTask, task: "Escola (Mãe leva)" });
+      activities.push({ time: "13:00h", task: "Reforço Pedagógico", icon: <BookOpen size={14}/> });
       activities.push({ time: "14:00h", task: "Saída (Faberson busca)", icon: <User size={14}/> });
       activities.push({ time: "19:00h", task: "Jiu-Jitsu", icon: <Activity size={14}/> });
-      pickup = "Pai busca às 14:00h";
+      pickup = "Pai busca às 14:00h após Reforço";
     }
     else if (day === 4) { // Quinta
-      parent = "Transição (Pai ➔ Mãe)";
+      parent = "Troca (Pai ➔ Mãe)";
       colorClass = "bg-slate-50 border-slate-200";
       stripeColor = "bg-gradient-to-r from-blue-500 to-rose-500";
       isTransition = true;
-      activities.push({ time: "07:30h", task: "Escola (Faberson leva)", icon: <BookOpen size={14}/> });
+      activities.push({ ...schoolTask, task: "Escola (Pai leva)" });
       activities.push({ time: "12:30h", task: "Saída (Juliana busca)", icon: <User size={14}/> });
       activities.push({ time: "16:00h", task: "Psicóloga", icon: <Heart size={14}/> });
       pickup = "Mãe busca às 12:30h";
@@ -108,16 +99,16 @@ const App = () => {
         parent = "Mãe (FDS Especial)";
         colorClass = "bg-rose-100 border-rose-300 ring-2 ring-amber-400 ring-inset";
         stripeColor = "bg-rose-600";
-        activities.push({ time: "07:30h", task: "Escola (Juliana leva)", icon: <BookOpen size={14}/> });
+        activities.push({ ...schoolTask, task: "Escola (Mãe leva)" });
         activities.push({ time: "12:30h", task: "Saída (Juliana busca)", icon: <User size={14}/> });
         activities.push({ time: "19:00h", task: "Jiu-Jitsu", icon: <Activity size={14}/> });
-        pickup = "Mãe busca (FDS Dela)";
+        pickup = "Mãe busca para o FDS";
       } else {
-        parent = "Transição (Mãe ➔ Pai)";
+        parent = "Troca (Mãe ➔ Pai)";
         colorClass = "bg-slate-50 border-slate-200";
         stripeColor = "bg-gradient-to-r from-rose-500 to-blue-500";
         isTransition = true;
-        activities.push({ time: "07:30h", task: "Escola (Juliana leva)", icon: <BookOpen size={14}/> });
+        activities.push({ ...schoolTask, task: "Escola (Mãe leva)" });
         activities.push({ time: "12:30h", task: "Saída (Faberson busca)", icon: <User size={14}/> });
         activities.push({ time: "19:00h", task: "Jiu-Jitsu", icon: <Activity size={14}/> });
         pickup = "Pai busca às 12:30h";
@@ -133,7 +124,7 @@ const App = () => {
         colorClass = "bg-blue-50 border-blue-200";
         stripeColor = "bg-blue-500";
       }
-      activities.push({ time: "Livre", task: "Tempo em Família", icon: <Heart size={14}/> });
+      activities.push({ time: "Dia Todo", task: "Tempo em Família", icon: <Heart size={14}/> });
     }
 
     return { parent, colorClass, stripeColor, activities, pickup, isTransition, secondWE };
@@ -145,154 +136,165 @@ const App = () => {
   const prevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
   const nextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
 
-  const renderCalendar = () => {
-    const year = viewDate.getFullYear();
-    const month = viewDate.getMonth();
-    const daysInMonth = getDaysInMonth(year, month);
-    const firstDay = getFirstDayOfMonth(year, month);
-    const calendarDays = [];
+  const daysInMonth = getDaysInMonth(viewDate.getFullYear(), viewDate.getMonth());
+  const firstDay = getFirstDayOfMonth(viewDate.getFullYear(), viewDate.getMonth());
+  const calendarDays = [];
 
-    for (let i = 0; i < firstDay; i++) {
-      calendarDays.push(<div key={`empty-${i}`} className="h-28 bg-gray-50/50 border border-gray-100 rounded-xl"></div>);
-    }
+  for (let i = 0; i < firstDay; i++) {
+    calendarDays.push(<div key={`empty-${i}`} className="h-14 md:h-24 bg-gray-50/30 rounded-lg"></div>);
+  }
 
-    for (let d = 1; d <= daysInMonth; d++) {
-      const date = new Date(year, month, d);
-      const isToday = date.toDateString() === new Date().toDateString();
-      const details = getDayDetails(date);
-
-      calendarDays.push(
-        <div 
-          key={d} 
-          className={`relative min-h-[140px] flex flex-col border-2 overflow-hidden transition-all shadow-sm rounded-xl ${details.colorClass} ${isToday ? 'ring-4 ring-indigo-500/30 border-indigo-500 z-10' : ''}`}
-        >
-          <div className={`h-1.5 w-full ${details.stripeColor}`} />
-          
-          <div className="p-1.5 flex-1">
-            <div className="flex justify-between items-center mb-1.5">
-              <span className={`text-xs font-black ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full' : 'text-slate-800'}`}>
-                {d}
-              </span>
-              <div className="flex items-center gap-0.5">
-                {details.secondWE && <Star size={10} className="text-amber-500 fill-amber-500" />}
-                <span className={`text-[8px] font-bold uppercase px-1 py-0.5 rounded ${details.isTransition ? 'bg-slate-200 text-slate-700' : (details.parent.includes('Mãe') ? 'bg-rose-500 text-white' : 'bg-blue-600 text-white')}`}>
-                  {details.parent.split(' ')[0]}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              {details.activities.map((act, idx) => (
-                <div key={idx} className="flex items-start gap-1 text-[9px] bg-white/60 p-1 rounded border border-black/5 leading-tight">
-                  <span className="font-bold text-slate-700">{act.time}</span>
-                  <span className="text-slate-600 flex items-center gap-0.5">{act.icon} {act.task}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {details.pickup && (
-            <div className="bg-white/40 p-1 border-t border-black/5 text-[8px] font-bold text-slate-700 flex items-center gap-1">
-              📍 <span className="truncate">{details.pickup}</span>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    return calendarDays;
-  };
+  const selectedDayDetails = getDayDetails(selectedDate);
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-900 pb-10">
-      <div className="max-w-7xl mx-auto space-y-4">
+      <div className="max-w-5xl mx-auto md:p-4 space-y-4">
         
-        {/* Cabeçalho Compacto */}
-        <div className="bg-white md:rounded-3xl shadow-xl border-b md:border border-slate-200 overflow-hidden">
-          <div className="bg-slate-900 p-4 md:p-8 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-500 rounded-xl text-white">
-                <CalendarIcon size={24} />
-              </div>
-              <div>
-                <h1 className="text-xl md:text-3xl font-black tracking-tight">Agenda do Enzo</h1>
-                <p className="text-slate-400 text-xs md:text-sm font-medium">Guarda Compartilhada</p>
+        {/* Cabeçalho */}
+        <header className="bg-slate-900 text-white p-4 md:rounded-3xl shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="p-2 bg-indigo-500 rounded-xl">
+              <CalendarIcon size={24} />
+            </div>
+            <div>
+              <h1 className="text-xl font-black tracking-tight">Agenda do Enzo</h1>
+              <p className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">Controle de Guarda</p>
+            </div>
+          </div>
+          
+          <nav className="flex items-center justify-between w-full sm:w-auto bg-slate-800 p-1 rounded-xl border border-slate-700">
+            <button onClick={prevMonth} className="p-2 hover:bg-slate-700 rounded-lg transition-all active:scale-95">
+              <ChevronLeft size={20} />
+            </button>
+            <div className="px-4 text-center font-bold text-sm uppercase min-w-[140px]">
+              {months[viewDate.getMonth()]} <span className="text-indigo-400">{viewDate.getFullYear()}</span>
+            </div>
+            <button onClick={nextMonth} className="p-2 hover:bg-slate-700 rounded-lg transition-all active:scale-95">
+              <ChevronRight size={20} />
+            </button>
+          </nav>
+        </header>
+
+        {/* Legenda Flutuante */}
+        <div className="px-4 md:px-0 flex overflow-x-auto gap-3 pb-2 no-scrollbar">
+          <div className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-full shadow-sm">
+            <div className="w-3 h-3 rounded-full bg-rose-500 shadow-sm"></div>
+            <span className="font-bold text-rose-700 text-[10px]">Mãe (Juliana)</span>
+          </div>
+          <div className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full shadow-sm">
+            <div className="w-3 h-3 rounded-full bg-blue-500 shadow-sm"></div>
+            <span className="font-bold text-blue-700 text-[10px]">Pai (Faberson)</span>
+          </div>
+          <div className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full shadow-sm">
+            <Star size={12} className="text-amber-500 fill-amber-500" />
+            <span className="font-bold text-amber-700 text-[10px]">FDS Especial</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 px-2 md:px-0">
+          
+          {/* Grelha do Calendário */}
+          <div className="lg:col-span-2 bg-white rounded-3xl shadow-lg border border-slate-200 p-2 md:p-4">
+            <div className="grid grid-cols-7 gap-1 md:gap-2">
+              {daysOfWeek.map(day => (
+                <div key={day} className="text-center font-black text-slate-400 py-1 uppercase text-[10px] tracking-tighter">
+                  {day}
+                </div>
+              ))}
+              {calendarDays}
+              {[...Array(daysInMonth)].map((_, i) => {
+                const day = i + 1;
+                const date = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
+                const isToday = date.toDateString() === new Date().toDateString();
+                const isSelected = date.toDateString() === selectedDate.toDateString();
+                const details = getDayDetails(date);
+                
+                return (
+                  <button 
+                    key={day}
+                    onClick={() => setSelectedDate(date)}
+                    className={`relative h-14 md:h-24 flex flex-col border-2 rounded-xl transition-all overflow-hidden ${details.colorClass} 
+                      ${isSelected ? 'border-indigo-500 shadow-md scale-105 z-10' : 'border-transparent'}
+                      ${isToday ? 'ring-2 ring-indigo-200 ring-offset-1' : ''}`}
+                  >
+                    <div className={`h-1.5 w-full ${details.stripeColor}`} />
+                    <div className="p-1 flex-1 flex flex-col items-center justify-center md:items-start md:justify-start">
+                      <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded-full shadow-sm' : 'text-slate-800'}`}>
+                        {day}
+                      </span>
+                      {/* Dots para Mobile */}
+                      <div className="flex md:hidden gap-0.5 mt-1">
+                        {details.activities.length > 0 && <div className="w-1 h-1 rounded-full bg-slate-400"></div>}
+                        {details.secondWE && <Star size={8} className="text-amber-500 fill-amber-500" />}
+                      </div>
+                      {/* Listagem para Desktop */}
+                      <div className="hidden md:block mt-1 space-y-1 w-full overflow-hidden">
+                        {details.activities.slice(0, 2).map((act, idx) => (
+                          <div key={idx} className="text-[8px] bg-white/40 p-0.5 rounded truncate font-bold text-left text-slate-600">
+                            {act.time} {act.task}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Agenda Detalhada (Smartphone) */}
+          <aside className="bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden h-fit">
+            <div className="bg-slate-50 p-4 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="font-black text-slate-800 flex items-center gap-2">
+                <Clock size={18} className="text-indigo-500" />
+                Detalhes do Dia
+              </h2>
+              <div className="text-[10px] font-bold bg-white border px-2 py-1 rounded-lg shadow-sm">
+                {selectedDate.getDate()} {months[selectedDate.getMonth()]}
               </div>
             </div>
             
-            <div className="flex items-center justify-between md:justify-end gap-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
-              <button onClick={prevMonth} className="p-2 hover:bg-slate-700 rounded-lg transition-all active:scale-90">
-                <ChevronLeft size={20} />
-              </button>
-              <div className="flex-1 md:flex-none min-w-[140px] text-center font-bold text-sm md:text-lg tracking-wide uppercase">
-                {months[viewDate.getMonth()]} <span className="text-indigo-400">{viewDate.getFullYear()}</span>
+            <div className="p-4 space-y-3">
+              <div className={`p-3 rounded-2xl flex items-center justify-between border-2 ${selectedDayDetails.colorClass}`}>
+                <div className="flex items-center gap-2">
+                  <User size={20} className={selectedDayDetails.parent.includes('Mãe') ? 'text-rose-500' : 'text-blue-500'} />
+                  <span className="font-black text-sm uppercase tracking-tight">{selectedDayDetails.parent}</span>
+                </div>
+                {selectedDayDetails.secondWE && <Star size={18} className="text-amber-500 fill-amber-500" />}
               </div>
-              <button 
-                onClick={nextMonth}
-                disabled={viewDate.getFullYear() === 2026 && viewDate.getMonth() === 11}
-                className="p-2 hover:bg-slate-700 rounded-lg transition-all active:scale-90 disabled:opacity-20"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          </div>
 
-          {/* Legenda Otimizada */}
-          <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-center gap-3 md:gap-6">
-            <div className="flex items-center gap-2 px-3 py-1 bg-rose-50 border border-rose-200 rounded-full shadow-sm">
-              <div className="w-3 h-3 rounded-full bg-rose-500"></div>
-              <span className="font-bold text-rose-700 text-[10px] md:text-sm">Mãe</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full shadow-sm">
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span className="font-bold text-blue-700 text-[10px] md:text-sm">Pai</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full shadow-sm">
-              <Star size={12} className="text-amber-500 fill-amber-500" />
-              <span className="font-bold text-amber-700 text-[10px] md:text-sm">FDS Especial</span>
-            </div>
-          </div>
-
-          {/* Grelha do Calendário */}
-          <div className="p-2 md:p-6 bg-white overflow-x-auto">
-            <div className="min-w-[700px] md:min-w-[1000px]">
-              <div className="grid grid-cols-7 gap-1 md:gap-3 mb-2">
-                {daysOfWeek.map(day => (
-                  <div key={day} className="text-center font-black text-slate-400 py-1 uppercase text-[10px] tracking-widest">
-                    {day}
+              <div className="space-y-2">
+                {selectedDayDetails.activities.map((act, idx) => (
+                  <div key={idx} className="flex items-start gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm transition-all hover:bg-white">
+                    <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-indigo-500">
+                      {act.icon}
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{act.time}</p>
+                      <p className="text-sm font-bold text-slate-700">{act.task}</p>
+                    </div>
                   </div>
                 ))}
               </div>
-              
-              <div className="grid grid-cols-7 gap-1 md:gap-3">
-                {renderCalendar()}
-              </div>
-            </div>
-          </div>
 
-          {/* Rodapé de Destaques */}
-          <div className="bg-slate-50 p-4 border-t border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-              <p className="font-black text-rose-600 text-[8px] uppercase">Turnos Juliana</p>
-              <p className="text-[10px] font-medium leading-tight">Seg (16h), Ter (Dia), Qui (12:30h)</p>
+              {selectedDayDetails.pickup && (
+                <div className="mt-4 p-3 bg-indigo-50 rounded-2xl border border-indigo-100 flex items-center gap-3">
+                  <div className="bg-indigo-500 text-white p-2 rounded-xl">
+                    <Info size={16} />
+                  </div>
+                  <p className="text-[10px] font-bold text-indigo-700 italic">
+                    Logística: {selectedDayDetails.pickup}
+                  </p>
+                </div>
+              )}
             </div>
-            <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-              <p className="font-black text-blue-600 text-[8px] uppercase">Turnos Faberson</p>
-              <p className="text-[10px] font-medium leading-tight">Qua (14h), Sex (12:30h), FDS Padrão</p>
-            </div>
-            <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-              <p className="font-black text-indigo-600 text-[8px] uppercase">Fixo Enzo</p>
-              <p className="text-[10px] font-medium leading-tight">Jiu-Jitsu: S/Q/S (19h) | Reforço: T/Q (13h)</p>
-            </div>
-            <div className="bg-amber-50 p-2 rounded-xl border border-amber-200 shadow-sm">
-              <p className="font-black text-amber-600 text-[8px] uppercase">Regra do 2º FDS</p>
-              <p className="text-[9px] italic leading-tight">Mãe busca na sexta e fica até segunda.</p>
-            </div>
-          </div>
+          </aside>
         </div>
-        
-        <p className="text-center text-slate-400 text-[10px] px-4">
-          Para instalar: No iPhone use "Compartilhar {' > '} Adicionar ao Ecrã Principal". No Android use os "Três pontos {' > '} Instalar".
+
+        {/* Rodapé Informativo */}
+        <p className="text-center text-slate-400 text-[10px] px-8 py-4 leading-relaxed">
+          Para uma melhor experiência no smartphone, clique no dia para ver a agenda detalhada.<br />
+          No iPhone: Partilhar {' > '} Adicionar ao Ecrã Principal.
         </p>
       </div>
     </div>
