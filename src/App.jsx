@@ -674,18 +674,19 @@ const App = () => {
             </div>
           </div>
 
-          <section className="bg-white rounded-3xl shadow-xl border border-slate-200 p-4 md:p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-sm shrink-0">
+          <section className="bg-white rounded-3xl shadow-xl border border-slate-200 p-4 md:p-6">
+            <div className="rounded-2xl bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 px-4 py-4 md:px-5 md:py-5 grid grid-cols-[1fr_auto] gap-4 items-center">
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-black">Jovem</p>
+                <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-tight truncate">{childProfile?.displayName || 'Jovem'}</h2>
+                <p className="mt-1 text-xs md:text-sm text-slate-500 font-semibold">Perfil exibido na organizacao da guarda</p>
+              </div>
+              <div className="w-16 h-16 md:w-24 md:h-24 rounded-3xl overflow-hidden bg-white border border-slate-200 shadow-sm shrink-0">
                 {childProfile?.photoUrl ? (
                   <img src={childProfile.photoUrl} alt={childProfile.displayName || 'Jovem'} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-black uppercase">Sem foto</div>
+                  <div className="w-full h-full flex items-center justify-center text-slate-400 text-[10px] font-black uppercase">Sem foto</div>
                 )}
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-black">Guarda compartilhada de</p>
-                <h2 className="text-xl md:text-2xl font-black text-slate-900 truncate">{childProfile?.displayName || 'Jovem'}</h2>
               </div>
             </div>
           </section>
