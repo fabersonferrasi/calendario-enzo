@@ -105,11 +105,23 @@ const emptyRuleForm = {
   highlightColor: 'slate',
 };
 const emptyActivityForm = { weeklyRuleId: '', timeLabel: '', title: '', iconKey: 'heart', sortOrder: 1 };
+const getStoredAdminIntent = () => window.localStorage.getItem('agenda_enzo_page') === 'admin';
+const setAdminIntent = (value) => {
+  if (value) {
+    window.localStorage.setItem('agenda_enzo_page', 'admin');
+    window.location.hash = 'admin';
+    return;
+  }
+  window.localStorage.removeItem('agenda_enzo_page');
+  if (window.location.hash === '#admin') {
+    history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+  }
+};
 
 const App = () => {
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [page, setPage] = useState('calendar');
+  const [page, setPage] = useState(() => (window.location.hash === '#admin' || getStoredAdminIntent() ? 'admin' : 'calendar'));
 
   const [calendarData, setCalendarData] = useState(null);
   const [loadingCalendar, setLoadingCalendar] = useState(true);
@@ -186,6 +198,21 @@ const App = () => {
     }
   }, []);
 
+  useEffect(() => {
+    const syncPageFromHash = () => {
+      if (window.location.hash === '#admin') {
+        setPage('admin');
+        setAdminIntent(true);
+        return;
+      }
+      setPage('calendar');
+      setAdminIntent(false);
+    };
+
+    window.addEventListener('hashchange', syncPageFromHash);
+    return () => window.removeEventListener('hashchange', syncPageFromHash);
+  }, []);
+
   const selectedRule = useMemo(() => getDisplayRule(selectedDate, calendarData), [selectedDate, calendarData]);
   const parentById = useMemo(() => Object.fromEntries((calendarData?.parents || []).map((parent) => [parent.id, parent])), [calendarData]);
   const parents = calendarData?.parents || [];
@@ -213,6 +240,7 @@ const App = () => {
       const payload = await api.login(loginForm);
       window.localStorage.setItem('agenda_enzo_token', payload.token);
       setSession(payload.user);
+      setAdminIntent(true);
       setPage('admin');
       const ok = await loadAdminBootstrap();
       if (ok) {
@@ -222,7 +250,6 @@ const App = () => {
       setAdminState({ loading: false, error: 'Login autenticado, mas o painel nao conseguiu carregar os dados.', message: '' });
     } catch (error) {
       setSession(null);
-      setPage('calendar');
       setAdminState({ loading: false, error: error.message, message: '' });
     }
   };
@@ -232,6 +259,7 @@ const App = () => {
       await api.logout();
     } catch (_error) {}
     window.localStorage.removeItem('agenda_enzo_token');
+    setAdminIntent(false);
     setSession(null);
     setAdminState({ loading: false, error: '', message: '' });
     setPage('calendar');
@@ -239,6 +267,7 @@ const App = () => {
   };
 
   const openAdminPage = async () => {
+    setAdminIntent(true);
     setPage('admin');
     setAdminState((state) => ({ ...state, message: '', error: '' }));
     if (!session && window.localStorage.getItem('agenda_enzo_token')) {
@@ -581,7 +610,7 @@ const App = () => {
               {page === 'calendar' ? (
                 <button onClick={openAdminPage} aria-label="Abrir admin" title="Admin" className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-colors text-sm font-bold"><Shield size={16} /></button>
               ) : (
-                <button onClick={() => setPage('calendar')} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-colors text-sm font-bold"><ArrowLeft size={16} /> Voltar para agenda</button>
+                <button onClick={() => { setAdminIntent(false); setPage('calendar'); }} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-colors text-sm font-bold"><ArrowLeft size={16} /> Voltar para agenda</button>
               )}
               {session ? (
                 <button onClick={handleLogout} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-400/30 hover:bg-rose-500/30 transition-colors text-sm font-bold"><LogOut size={16} /> Sair</button>
