@@ -493,6 +493,7 @@ const App = () => {
       const palette = details ? (colors[details.highlightColor] || colors.slate) : colors.slate;
       const stripe = details ? (stripeMap[details.stripeMode] || palette.stripe) : 'bg-slate-300';
       const isMonthMode = mode === 'month';
+      const isWeekMode = mode === 'week';
       const firstActivity = details?.activities?.[0];
       const secondaryActivity = details?.activities?.[1];
       const guardName = details?.primaryParentId ? parentById[details.primaryParentId]?.name : '';
@@ -504,12 +505,16 @@ const App = () => {
         <button
           key={date.toISOString()}
           onClick={() => { setSelectedDate(date); setModalDate(date); }}
-          className={`relative ${isMonthMode ? 'h-20 md:h-24 lg:h-28' : 'h-44 md:h-52'} flex flex-col border-2 rounded-2xl transition-all overflow-hidden text-left ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-transparent'} ${isToday ? 'ring-2 ring-indigo-500/25' : ''}`}
+          className={`relative ${isMonthMode ? 'h-20 md:h-24 lg:h-28' : isWeekMode ? 'h-52 md:h-56' : 'h-44 md:h-52'} flex flex-col border-2 rounded-2xl transition-all overflow-hidden text-left ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-transparent'} ${isToday ? 'ring-2 ring-indigo-500/25' : ''}`}
         >
           <div className={`${isMonthMode ? 'h-2' : 'h-2.5'} w-full ${stripe}`} />
           <div className={`${isMonthMode ? 'p-2' : 'p-3 md:p-4'} flex-1 flex flex-col`}>
             <div className="flex items-center justify-between gap-2">
-              <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-7 h-7 rounded-full inline-flex items-center justify-center' : 'text-slate-700'}`}>{date.getDate()}</span>
+              {isWeekMode ? (
+                <span className={`text-[10px] md:text-xs font-black uppercase tracking-[0.2em] px-2.5 py-1 rounded-full ${isToday ? 'bg-indigo-600 text-white' : 'bg-white/85 text-slate-700'}`}>{daysOfWeek[date.getDay()]}</span>
+              ) : (
+                <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-7 h-7 rounded-full inline-flex items-center justify-center' : 'text-slate-700'}`}>{date.getDate()}</span>
+              )}
               {details?.specialWeekend ? <Star size={12} className="text-amber-500 fill-amber-500" /> : null}
             </div>
             {isMonthMode ? (
@@ -518,6 +523,7 @@ const App = () => {
               </div>
             ) : (
               <div className="mt-3 space-y-2">
+                {isWeekMode ? <p className="text-xs font-black text-slate-600">{date.getDate()} {months[date.getMonth()]}</p> : null}
                 <div className="inline-flex max-w-full rounded-full bg-white/85 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-700">
                   <span className="truncate">{details?.label || 'Sem regra'}</span>
                 </div>
@@ -538,8 +544,7 @@ const App = () => {
           <div className="text-[10px] font-bold bg-indigo-500 text-white px-2 py-1 rounded-full shadow-sm">{selectedDate.getDate()} {daysOfWeek[selectedDate.getDay()]}</div>
         </div>
         <div className="p-4 space-y-3">
-          {renderRuleDetails(selectedDate, selectedRule, { showDateHeader: true, todayLabel: true })}
-          <button type="button" onClick={() => setModalDate(selectedDate)} className="w-full inline-flex items-center justify-center px-4 py-2 rounded-2xl bg-slate-900 text-white text-sm font-black">Abrir popup</button>
+          {renderRuleDetails(selectedDate, selectedRule)}
         </div>
       </aside>
     );
