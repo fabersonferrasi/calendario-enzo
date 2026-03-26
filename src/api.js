@@ -411,6 +411,7 @@ const request = async (url, options = {}) => {
   try {
     response = await fetch(url, {
       ...options,
+      cache: 'no-store',
       headers,
     });
   } catch (_error) {
@@ -452,6 +453,7 @@ const requestBinary = async (url, file) => {
   try {
     response = await fetch(url, {
       method: 'POST',
+      cache: 'no-store',
       headers,
       body: file,
     });

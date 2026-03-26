@@ -385,6 +385,22 @@ const App = () => {
     }
   };
 
+  const openCalendarPage = () => {
+    setAdminIntent(false);
+    setMobileMenuOpen(false);
+    setPage('calendar');
+    setAdminState((state) => ({ ...state, message: '', error: '' }));
+    loadCalendar();
+  };
+
+  const goToToday = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    setSelectedDate(today);
+    setViewDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    setModalDate(null);
+  };
+
   const resetParentForm = () => {
     setEditingParentId(null);
     setParentForm(emptyParentForm);
@@ -847,13 +863,19 @@ const App = () => {
               <button onClick={() => setCalendarView('week')} className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${calendarView === 'week' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}>Semana</button>
               <button onClick={() => setCalendarView('month')} className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${calendarView === 'month' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}>Mês</button>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <button onClick={() => moveRange(-1)} className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700"><ChevronLeft size={18} /></button>
-              <div className="text-center px-3">
-                <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-black">Período</p>
-                <p className="text-sm md:text-base font-black text-slate-900">{periodLabel}</p>
+            <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
+              <button onClick={goToToday} className="inline-flex items-center justify-center gap-2 px-4 h-10 rounded-xl bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-sm font-black">
+                <CalendarIcon size={16} />
+                Hoje
+              </button>
+              <div className="flex items-center justify-between gap-3">
+                <button onClick={() => moveRange(-1)} className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700"><ChevronLeft size={18} /></button>
+                <div className="text-center px-3">
+                  <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-black">Período</p>
+                  <p className="text-sm md:text-base font-black text-slate-900">{periodLabel}</p>
+                </div>
+                <button onClick={() => moveRange(1)} className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700"><ChevronRight size={18} /></button>
               </div>
-              <button onClick={() => moveRange(1)} className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700"><ChevronRight size={18} /></button>
             </div>
           </div>
 
@@ -1073,7 +1095,7 @@ const App = () => {
               {page === 'calendar' ? (
                 <button onClick={openAdminPage} aria-label="Abrir admin" title="Admin" className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-colors text-sm font-bold"><Shield size={16} /></button>
               ) : (
-                <button onClick={() => { setAdminIntent(false); setPage('calendar'); }} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-colors text-sm font-bold"><ArrowLeft size={16} /> Voltar para agenda</button>
+                <button onClick={openCalendarPage} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-colors text-sm font-bold"><ArrowLeft size={16} /> Voltar para agenda</button>
               )}
               {session ? (
                 <button onClick={handleLogout} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 transition-colors text-sm font-bold text-rose-700"><LogOut size={16} /> Sair</button>
@@ -1093,7 +1115,7 @@ const App = () => {
                   Admin
                 </button>
               ) : (
-                <button onClick={() => { setAdminIntent(false); setMobileMenuOpen(false); setPage('calendar'); }} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-sm font-black">
+                <button onClick={openCalendarPage} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-sm font-black">
                   <ArrowLeft size={16} />
                   Voltar para agenda
                 </button>
