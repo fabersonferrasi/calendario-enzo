@@ -3,7 +3,10 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
-const dataDir = path.resolve(process.cwd(), 'server', 'data');
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const dataDir = isServerless
+  ? path.resolve('/tmp', 'agenda-enzo')
+  : path.resolve(process.cwd(), 'server', 'data');
 const dbPath = path.join(dataDir, 'agenda-enzo.sqlite');
 
 fs.mkdirSync(dataDir, { recursive: true });
