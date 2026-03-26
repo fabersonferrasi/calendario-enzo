@@ -59,6 +59,43 @@ const isSameDay = (left, right) => left.toDateString() === right.toDateString();
 const getFullDateLabel = (date) => `${daysOfWeek[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}`;
 const capitalize = (value) => value.charAt(0).toUpperCase() + value.slice(1);
 const getShortDateLabel = (date) => capitalize(date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }));
+const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result || ''));
+  reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem.'));
+  reader.readAsDataURL(file);
+});
+const loadImageElement = (src) => new Promise((resolve, reject) => {
+  const image = new Image();
+  image.onload = () => resolve(image);
+  image.onerror = () => reject(new Error('Nao foi possivel processar a imagem.'));
+  image.src = src;
+});
+const convertImageFileToDataUrl = async (file) => {
+  const source = await readFileAsDataUrl(file);
+  if (typeof document === 'undefined') return source;
+
+  try {
+    const image = await loadImageElement(source);
+    const maxDimension = 720;
+    const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+
+    if (!context) return source;
+
+    canvas.width = width;
+    canvas.height = height;
+    context.drawImage(image, 0, 0, width, height);
+
+    const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+    return canvas.toDataURL(outputType, outputType === 'image/png' ? undefined : 0.86);
+  } catch (_error) {
+    return source;
+  }
+};
 
 const getNthWeekdayDate = (year, month, weekday, occurrence) => {
   let count = 0;
@@ -150,6 +187,7 @@ const App = () => {
   const [editingActivityId, setEditingActivityId] = useState(null);
   const [weekendForm, setWeekendForm] = useState({ occurrence: 2, startWeekday: 5, durationDays: 3, parentId: '', label: '', pickupText: '', highlightColor: 'rose' });
   const [childForm, setChildForm] = useState({ displayName: '', photoUrl: '' });
+  const [childPhotoState, setChildPhotoState] = useState({ loading: false, error: '', fileName: '' });
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -178,6 +216,7 @@ const App = () => {
       displayName: payload.childProfile.displayName || '',
       photoUrl: payload.childProfile.photoUrl || '',
     });
+    setChildPhotoState({ loading: false, error: '', fileName: '' });
   };
 
   const loadCalendar = async () => {
@@ -418,6 +457,35 @@ const App = () => {
     }
   };
 
+  const handleChildPhotoUpload = async (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setChildPhotoState({ loading: false, error: 'Selecione um arquivo de imagem valido.', fileName: '' });
+      event.target.value = '';
+      return;
+    }
+
+    setChildPhotoState({ loading: true, error: '', fileName: file.name });
+
+    try {
+      const photoUrl = await convertImageFileToDataUrl(file);
+      setChildForm((state) => ({ ...state, photoUrl }));
+      setChildPhotoState({ loading: false, error: '', fileName: file.name });
+    } catch (error) {
+      setChildPhotoState({ loading: false, error: error.message || 'Nao foi possivel preparar a foto.', fileName: '' });
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const openDayModal = (date) => {
+    setSelectedDate(date);
+    setModalDate(date);
+  };
+
   const renderRuleDetails = (date, rule, options = {}) => {
     const {
       compact = false,
@@ -542,7 +610,7 @@ const App = () => {
         <button
           key={date.toISOString()}
           type="button"
-          onClick={() => { setSelectedDate(date); setModalDate(date); }}
+          onClick={() => openDayModal(date)}
           className={`relative h-20 md:h-24 lg:h-28 flex flex-col border-2 rounded-2xl transition-all overflow-hidden text-left ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-transparent'} ${isToday ? 'ring-2 ring-indigo-500/25' : ''} hover:shadow-md`}
         >
           <div className={`h-2 w-full ${stripe}`} />
@@ -567,48 +635,31 @@ const App = () => {
       const guard = details?.primaryParentId ? parentById[details.primaryParentId] : null;
       const guardMarker = guard ? (colors[guard.colorKey] || colors.slate).stripe : 'bg-slate-300';
       const activities = details?.activities || [];
-      const previewActivities = activities.slice(0, 3);
-      const extraActivities = Math.max(activities.length - previewActivities.length, 0);
+      const activityCount = activities.length;
 
       return (
-        <button
+        <article
           key={date.toISOString()}
-          type="button"
-          onClick={() => setSelectedDate(date)}
-          className={`group relative overflow-hidden rounded-3xl border bg-white p-3 md:p-4 text-left transition-all ${isSelected ? 'border-indigo-500 shadow-xl ring-2 ring-indigo-500/10' : 'border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-lg'} ${isToday ? 'bg-gradient-to-r from-indigo-50 via-white to-white' : ''}`}
+          className={`relative overflow-hidden rounded-3xl border bg-white p-3 md:p-4 transition-all ${isSelected ? 'border-indigo-500 shadow-xl ring-2 ring-indigo-500/10' : 'border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-lg'} ${isToday ? 'bg-gradient-to-r from-indigo-50 via-white to-white' : ''}`}
         >
           <div className={`absolute inset-y-0 left-0 w-1.5 ${stripe}`} />
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
-            <div className={`rounded-2xl border p-4 lg:w-48 shrink-0 ${palette.card} ${isSelected ? 'border-indigo-200' : 'border-white/70'}`}>
-              <div className="flex items-start justify-between gap-3 lg:flex-col lg:items-start lg:h-full">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center">
+            <button type="button" onClick={() => setSelectedDate(date)} className="flex-1 min-w-0 text-left">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                <div className={`shrink-0 rounded-2xl border px-3 py-3 ${palette.card} ${isSelected ? 'border-indigo-200 shadow-sm' : 'border-white/70'}`}>
+                  <div className="flex items-center gap-3 sm:flex-col sm:items-start sm:gap-2">
                     <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] ${isToday ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700'}`}>{daysOfWeek[date.getDay()]}</span>
-                    {details?.specialWeekend ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700">
-                        <Star size={10} className="fill-amber-500" />
-                        Especial
-                      </span>
-                    ) : null}
-                  </div>
-                  <div>
-                    <p className="text-2xl md:text-3xl leading-none font-black text-slate-900">{date.getDate()}</p>
-                    <p className="mt-1 text-[11px] font-black uppercase tracking-[0.25em] text-slate-500">{getShortDateLabel(date)}</p>
+                    <div>
+                      <p className="text-2xl leading-none font-black text-slate-900">{date.getDate()}</p>
+                      <p className="mt-1 text-[11px] font-black uppercase tracking-[0.25em] text-slate-500">{getShortDateLabel(date)}</p>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right lg:text-left">
-                  {isToday ? <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-600">Hoje</p> : null}
-                  {isSelected ? <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-700">Painel aberto</p> : <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Toque para focar</p>}
-                </div>
-              </div>
-            </div>
-
-            <div className="min-w-0 flex-1 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(240px,280px)]">
-              <div className="space-y-3 min-w-0">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Rotina do dia</p>
-                    <p className="text-base md:text-lg font-black text-slate-900 truncate">{details?.label || 'Sem regra cadastrada'}</p>
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <p className="text-base md:text-lg font-black text-slate-900">{details?.label || 'Sem regra cadastrada'}</p>
+                    {isToday ? <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-indigo-700">Hoje</span> : null}
+                    {details?.specialWeekend ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700"><Star size={10} className="fill-amber-500" />Especial</span> : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-700">
@@ -617,52 +668,31 @@ const App = () => {
                     </span>
                     <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">
                       <Clock size={12} className="text-indigo-500" />
-                      {activities.length} compromisso{activities.length === 1 ? '' : 's'}
+                      {activityCount} compromisso{activityCount === 1 ? '' : 's'}
                     </span>
                   </div>
-                </div>
-
-                {details?.pickupText ? (
-                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-3 py-2 flex items-start gap-2">
-                    <Info size={14} className="text-indigo-500 mt-0.5 shrink-0" />
-                    <p className="text-xs font-bold text-indigo-700">{details.pickupText}</p>
+                  <div className={`rounded-2xl px-3 py-2 ${details?.pickupText ? 'border border-indigo-100 bg-indigo-50' : 'border border-slate-200 bg-slate-50'}`}>
+                    <p className={`text-sm font-semibold ${details?.pickupText ? 'text-indigo-700' : 'text-slate-500'}`}>
+                      {details?.pickupText || 'Use o popup para ver a agenda completa deste dia.'}
+                    </p>
                   </div>
-                ) : (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-xs font-semibold text-slate-500">Dia sem observacao adicional cadastrada.</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 md:p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Agenda</p>
-                  {extraActivities ? <span className="text-[10px] font-black uppercase tracking-wide text-slate-400">+{extraActivities} extra</span> : null}
-                </div>
-                <div className="mt-3 space-y-2">
-                  {previewActivities.length ? previewActivities.map((activity) => {
-                    const Icon = iconMap[activity.iconKey] || Clock;
-                    return (
-                      <div key={activity.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
-                        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-indigo-500">
-                          <Icon size={15} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{activity.timeLabel}</p>
-                          <p className="text-sm font-bold text-slate-700 leading-tight">{activity.title}</p>
-                        </div>
-                      </div>
-                    );
-                  }) : (
-                    <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-4">
-                      <p className="text-sm font-semibold text-slate-500">Sem compromisso fixo para este dia.</p>
-                    </div>
-                  )}
                 </div>
               </div>
+            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:w-56 shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedDate(date)}
+                className={`inline-flex items-center justify-center rounded-2xl px-3 py-2.5 text-xs font-black uppercase tracking-wide border transition-colors ${isSelected ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
+              >
+                {isSelected ? 'No painel' : 'Selecionar'}
+              </button>
+              <button type="button" onClick={() => openDayModal(date)} className="inline-flex items-center justify-center rounded-2xl px-3 py-2.5 text-xs font-black uppercase tracking-wide border border-slate-900 bg-slate-900 text-white hover:bg-slate-800">
+                Abrir popup
+              </button>
             </div>
           </div>
-        </button>
+        </article>
       );
     };
 
@@ -722,26 +752,22 @@ const App = () => {
 
       return (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <section className="xl:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-3 md:p-5">
-            <div className="border-b border-slate-100 pb-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Visao da semana</p>
-                  <p className="text-lg md:text-xl font-black text-slate-900">Cards reorganizados para leitura rapida da rotina</p>
-                  <p className="text-xs font-semibold text-slate-500">Toque em um dia para atualizar o painel de detalhes ao lado.</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">7 dias</span>
-                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">{totalActivities} compromissos</span>
-                  {specialDays ? <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700">{specialDays} dia{specialDays === 1 ? '' : 's'} especial{specialDays === 1 ? '' : 'is'}</span> : null}
-                </div>
+          <div className="order-1 xl:order-2">
+            {renderSelectedPanel()}
+          </div>
+          <section className="order-2 xl:order-1 xl:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-3 md:p-5">
+            <div className="border-b border-slate-100 pb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <p className="text-sm md:text-base font-black text-slate-900">Semana</p>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">7 dias</span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">{totalActivities} compromissos</span>
+                {specialDays ? <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700">{specialDays} dia{specialDays === 1 ? '' : 's'} especial{specialDays === 1 ? '' : 'is'}</span> : null}
               </div>
             </div>
             <div className="mt-4 space-y-3">
               {weekEntries.map(({ date, details }) => renderWeekCard(date, details))}
             </div>
           </section>
-          {renderSelectedPanel()}
         </div>
       );
     };
@@ -816,17 +842,17 @@ const App = () => {
 
         {modalDate ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
-            <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="w-full max-w-lg max-h-[85vh] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
               <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.25em] text-indigo-300">Guarda do dia</p>
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-indigo-300">Agenda do dia</p>
                   <p className="text-base font-black">{getFullDateLabel(modalDate)}</p>
                 </div>
                 <button type="button" onClick={() => setModalDate(null)} className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700">
                   <X size={18} />
                 </button>
               </div>
-              <div className="p-4 space-y-3">
+              <div className="p-4 space-y-3 overflow-y-auto">
                 {renderRuleDetails(modalDate, modalRule, { compact: true })}
               </div>
             </div>
@@ -856,16 +882,26 @@ const App = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <section className="xl:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-4 space-y-3">
           <p className="font-black text-sm">Perfil do jovem</p>
-          <form onSubmit={saveChildProfile} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-            <div className="md:col-span-2 space-y-3">
-              <input value={childForm.displayName} onChange={(event) => setChildForm((state) => ({ ...state, displayName: event.target.value }))} placeholder="Nome de exibicao" className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm font-semibold" />
-              <input value={childForm.photoUrl} onChange={(event) => setChildForm((state) => ({ ...state, photoUrl: event.target.value }))} placeholder="URL da foto" className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm font-semibold" />
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
-                {childForm.photoUrl ? <img src={childForm.photoUrl} alt={childForm.displayName || 'Jovem'} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-slate-400 uppercase">Sem foto</div>}
+          <form onSubmit={saveChildProfile} className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-4 items-start">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-center">
+              <div className="mx-auto w-32 h-32 rounded-full p-[4px] bg-gradient-to-br from-sky-400 via-indigo-500 to-rose-400 shadow-lg">
+                <div className="w-full h-full rounded-full overflow-hidden border border-white/80 bg-white">
+                  {childForm.photoUrl ? <img src={childForm.photoUrl} alt={childForm.displayName || 'Jovem'} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-slate-400 uppercase">Sem foto</div>}
+                </div>
               </div>
-              <button type="submit" className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-slate-900 text-white text-sm font-black"><Save size={16} /> Salvar</button>
+              <label className={`mt-4 flex cursor-pointer items-center justify-center rounded-2xl border border-dashed px-4 py-3 text-sm font-black transition-colors ${childPhotoState.loading ? 'border-slate-200 bg-slate-100 text-slate-400' : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50'}`}>
+                <input type="file" accept="image/*" className="hidden" onChange={handleChildPhotoUpload} disabled={childPhotoState.loading} />
+                {childPhotoState.loading ? 'Preparando foto...' : 'Enviar nova foto'}
+              </label>
+              <p className="mt-2 text-[11px] font-semibold text-slate-500">{childPhotoState.fileName || 'PNG, JPG ou WebP'}</p>
+              {childForm.photoUrl ? <button type="button" onClick={() => { setChildForm((state) => ({ ...state, photoUrl: '' })); setChildPhotoState((state) => ({ ...state, error: '', fileName: '' })); }} className="mt-3 text-xs font-black uppercase tracking-wide text-rose-600">Remover foto</button> : null}
+              {childPhotoState.error ? <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700">{childPhotoState.error}</div> : null}
+            </div>
+            <div className="space-y-3">
+              <input value={childForm.displayName} onChange={(event) => setChildForm((state) => ({ ...state, displayName: event.target.value }))} placeholder="Nome de exibicao" className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm font-semibold" />
+              <input value={childForm.photoUrl} onChange={(event) => { setChildForm((state) => ({ ...state, photoUrl: event.target.value })); setChildPhotoState((state) => ({ ...state, error: '' })); }} placeholder="URL da foto (opcional)" className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm font-semibold" />
+              <p className="text-xs font-semibold text-slate-500">Voce pode subir uma nova foto direto do dispositivo ou manter uma URL manual.</p>
+              <button type="submit" disabled={childPhotoState.loading} className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-slate-900 text-white text-sm font-black disabled:opacity-60"><Save size={16} /> Salvar perfil</button>
             </div>
           </form>
         </section>
@@ -974,18 +1010,24 @@ const App = () => {
       <div className="max-w-6xl mx-auto md:p-4 space-y-4">
         <header className="relative bg-white text-slate-900 p-3 md:p-4 md:rounded-3xl shadow-lg border border-slate-200 sticky top-0 z-40">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="p-2 bg-slate-900 text-white rounded-xl shadow-lg"><CalendarIcon size={20} /></div>
-              <div className="min-w-0">
-                <h1 className="text-base md:text-xl font-black tracking-tight leading-none truncate">Agenda Enzo</h1>
-                <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-slate-400 truncate">{childProfile?.displayName || 'Jovem'}</p>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="relative shrink-0">
+                <div className="w-12 h-12 md:w-14 md:h-14 rounded-full p-[2px] bg-gradient-to-br from-sky-400 via-indigo-500 to-rose-400 shadow-lg">
+                  <div className="w-full h-full rounded-full overflow-hidden border border-white/80 bg-slate-100">
+                    {childProfile?.photoUrl ? (
+                      <img src={childProfile.photoUrl} alt={childProfile.displayName || 'Jovem'} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-400 text-[9px] font-black uppercase">Foto</div>
+                    )}
+                  </div>
+                </div>
+                <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-white bg-slate-900 text-white shadow-md">
+                  <CalendarIcon size={12} />
+                </div>
               </div>
-              <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-sm shrink-0">
-                {childProfile?.photoUrl ? (
-                  <img src={childProfile.photoUrl} alt={childProfile.displayName || 'Jovem'} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-400 text-[9px] font-black uppercase">Foto</div>
-                )}
+              <div className="min-w-0">
+                <h1 className="text-base md:text-xl font-black tracking-tight leading-none truncate lowercase">agenda</h1>
+                <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-slate-400 truncate">{childProfile?.displayName || 'Jovem'}</p>
               </div>
             </div>
 
