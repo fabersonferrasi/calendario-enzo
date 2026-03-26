@@ -154,6 +154,12 @@ const initialData = {
 const getStoredToken = () => window.localStorage.getItem(SESSION_KEY);
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
+const fileToDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result || ''));
+  reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem.'));
+  reader.readAsDataURL(file);
+});
 
 const getLocalDb = () => {
   const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -364,6 +370,17 @@ const localApi = {
     setLocalDb(db);
     return clone(db.childProfile);
   },
+  uploadChildPhoto: async (file) => {
+    ensureAuthenticated();
+    const db = getLocalDb();
+    const photoUrl = await fileToDataUrl(file);
+    db.childProfile = {
+      ...db.childProfile,
+      photoUrl,
+    };
+    setLocalDb(db);
+    return clone(db.childProfile);
+  },
 };
 
 const request = async (url, options = {}) => {
@@ -405,6 +422,47 @@ const request = async (url, options = {}) => {
   return payload || {};
 };
 
+const requestBinary = async (url, file) => {
+  const headers = {};
+  const token = getStoredToken();
+
+  if (file?.type) {
+    headers['Content-Type'] = file.type;
+  }
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: file,
+    });
+  } catch (_error) {
+    const fallbackError = new Error('API_UNAVAILABLE');
+    fallbackError.code = 'API_UNAVAILABLE';
+    throw fallbackError;
+  }
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    if (response.status === 413) {
+      throw new Error('A foto ficou grande demais para enviar. Tente outra imagem menor.');
+    }
+    if (response.status === 404 || response.status >= 500) {
+      const fallbackError = new Error('API_UNAVAILABLE');
+      fallbackError.code = 'API_UNAVAILABLE';
+      throw fallbackError;
+    }
+    throw new Error(payload?.error || 'Nao foi possivel enviar a foto.');
+  }
+
+  return payload || {};
+};
+
 const withFallback = async (remoteCall, localCall) => {
   try {
     return await remoteCall();
@@ -432,4 +490,5 @@ export const api = {
   deleteActivity: (id) => withFallback(() => request(`/api/admin/activities/${id}`, { method: 'DELETE' }), () => localApi.deleteActivity(id)),
   updateWeekendConfig: (payload) => withFallback(() => request('/api/admin/weekend-config', { method: 'PUT', body: JSON.stringify(payload) }), () => localApi.updateWeekendConfig(payload)),
   updateChildProfile: (payload) => withFallback(() => request('/api/admin/child-profile', { method: 'PUT', body: JSON.stringify(payload) }), () => localApi.updateChildProfile(payload)),
+  uploadChildPhoto: (file) => withFallback(() => requestBinary('/api/admin/child-photo', file), () => localApi.uploadChildPhoto(file)),
 };

@@ -59,21 +59,25 @@ const isSameDay = (left, right) => left.toDateString() === right.toDateString();
 const getFullDateLabel = (date) => `${daysOfWeek[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}`;
 const capitalize = (value) => value.charAt(0).toUpperCase() + value.slice(1);
 const getShortDateLabel = (date) => capitalize(date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }));
-const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(String(reader.result || ''));
-  reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem.'));
-  reader.readAsDataURL(file);
-});
 const loadImageElement = (src) => new Promise((resolve, reject) => {
   const image = new Image();
   image.onload = () => resolve(image);
   image.onerror = () => reject(new Error('Nao foi possivel processar a imagem.'));
   image.src = src;
 });
-const convertImageFileToDataUrl = async (file) => {
-  const source = await readFileAsDataUrl(file);
-  if (typeof document === 'undefined') return source;
+const canvasToBlob = (canvas, type, quality) => new Promise((resolve, reject) => {
+  canvas.toBlob((blob) => {
+    if (blob) {
+      resolve(blob);
+      return;
+    }
+    reject(new Error('Nao foi possivel gerar a imagem.'));
+  }, type, quality);
+});
+const convertImageFileForUpload = async (file) => {
+  if (typeof document === 'undefined') return file;
+
+  const source = URL.createObjectURL(file);
 
   try {
     const image = await loadImageElement(source);
@@ -84,26 +88,29 @@ const convertImageFileToDataUrl = async (file) => {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
 
-    if (!context) return source;
+    if (!context) return file;
 
     canvas.width = width;
     canvas.height = height;
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, width, height);
     context.drawImage(image, 0, 0, width, height);
-    const qualities = [0.82, 0.72, 0.64, 0.56];
-    const maxDataUrlLength = 180000;
+    const qualities = [0.82, 0.72, 0.64, 0.56, 0.48];
+    const maxBlobSize = 150 * 1024;
 
     for (const quality of qualities) {
-      const output = canvas.toDataURL('image/jpeg', quality);
-      if (output.length <= maxDataUrlLength) {
-        return output;
+      const blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+      if (blob.size <= maxBlobSize) {
+        return new File([blob], 'child-profile.jpg', { type: 'image/jpeg' });
       }
     }
 
-    return canvas.toDataURL('image/jpeg', 0.5);
+    const fallbackBlob = await canvasToBlob(canvas, 'image/jpeg', 0.42);
+    return new File([fallbackBlob], 'child-profile.jpg', { type: 'image/jpeg' });
   } catch (_error) {
-    return source;
+    return file;
+  } finally {
+    URL.revokeObjectURL(source);
   }
 };
 
@@ -481,10 +488,18 @@ const App = () => {
     setChildPhotoState({ loading: true, error: '', fileName: file.name });
 
     try {
-      const photoUrl = await convertImageFileToDataUrl(file);
-      setChildForm((state) => ({ ...state, photoUrl }));
+      const uploadFile = await convertImageFileForUpload(file);
+      const profile = await api.uploadChildPhoto(uploadFile);
+      setChildForm((state) => ({ ...state, photoUrl: profile.photoUrl || '' }));
+      setCalendarData((state) => (state ? ({
+        ...state,
+        childProfile: {
+          ...(state.childProfile || {}),
+          photoUrl: profile.photoUrl || '',
+        },
+      }) : state));
       setChildPhotoState({ loading: false, error: '', fileName: file.name });
-      setAdminState((state) => ({ ...state, error: '', message: 'Foto pronta. Clique em Salvar perfil para aplicar.' }));
+      setAdminState((state) => ({ ...state, error: '', message: 'Foto atualizada. Salve o perfil apenas se tambem alterou o nome.' }));
     } catch (error) {
       setChildPhotoState({ loading: false, error: error.message || 'Nao foi possivel preparar a foto.', fileName: '' });
     } finally {
