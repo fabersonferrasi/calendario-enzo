@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { db, dbPath, hashToken, verifyPassword } from './db.js';
+import { db, dbPath, verifyPassword } from './db.js';
 
 const SESSION_TTL_HOURS = 12;
 const distPath = path.resolve(process.cwd(), 'dist');
+const AUTH_SECRET = process.env.AUTH_SECRET || 'agenda-enzo-local-auth-secret';
 
 const parentSelect = `
   SELECT
@@ -142,12 +143,26 @@ const sanitizeWeekendConfig = (body) => ({
   highlight_color: String(body.highlightColor || 'rose').trim(),
 });
 
-const createSession = (userId) => {
-  const token = crypto.randomBytes(32).toString('hex');
-  const tokenHash = hashToken(token);
+const encodeBase64Url = (value) => Buffer.from(value).toString('base64url');
+
+const decodeBase64Url = (value) => Buffer.from(value, 'base64url').toString('utf8');
+
+const signToken = (payload) => crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('base64url');
+
+const createSession = (user) => {
   const expiresAt = new Date(Date.now() + SESSION_TTL_HOURS * 60 * 60 * 1000).toISOString();
-  db.prepare('INSERT INTO sessions (user_id, token_hash, expires_at) VALUES (?, ?, ?)').run(userId, tokenHash, expiresAt);
-  return { token, expiresAt };
+  const payload = JSON.stringify({
+    userId: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    expiresAt,
+  });
+  const encodedPayload = encodeBase64Url(payload);
+  const signature = signToken(encodedPayload);
+  return {
+    token: `${encodedPayload}.${signature}`,
+    expiresAt,
+  };
 };
 
 const getAuthorizedSession = (req) => {
@@ -157,28 +172,48 @@ const getAuthorizedSession = (req) => {
     return null;
   }
 
-  const session = db.prepare(`
-    SELECT
-      s.id,
-      s.user_id AS userId,
-      s.expires_at AS expiresAt,
-      a.username,
-      a.display_name AS displayName
-    FROM sessions s
-    JOIN admin_users a ON a.id = s.user_id
-    WHERE s.token_hash = ?
-  `).get(hashToken(token));
-
-  if (!session) {
+  const [encodedPayload, signature] = token.split('.');
+  if (!encodedPayload || !signature) {
     return null;
   }
 
-  if (new Date(session.expiresAt).getTime() <= Date.now()) {
-    db.prepare('DELETE FROM sessions WHERE id = ?').run(session.id);
+  const expectedSignature = signToken(encodedPayload);
+  const signatureBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expectedSignature);
+  if (signatureBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
     return null;
   }
 
-  return { session, token };
+  let payload;
+  try {
+    payload = JSON.parse(decodeBase64Url(encodedPayload));
+  } catch (_error) {
+    return null;
+  }
+
+  if (!payload?.userId || !payload?.expiresAt || new Date(payload.expiresAt).getTime() <= Date.now()) {
+    return null;
+  }
+
+  const user = db.prepare(`
+    SELECT id, username, display_name AS displayName
+    FROM admin_users
+    WHERE id = ?
+  `).get(payload.userId);
+
+  if (!user) {
+    return null;
+  }
+
+  return {
+    session: {
+      userId: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      expiresAt: payload.expiresAt,
+    },
+    token,
+  };
 };
 
 const requireAuth = (req, res) => {
@@ -269,7 +304,7 @@ export const handleRequest = async (req, res, options = {}) => {
         return;
       }
 
-      const created = createSession(user.id);
+      const created = createSession(user);
       json(res, 200, {
         token: created.token,
         expiresAt: created.expiresAt,
@@ -285,7 +320,6 @@ export const handleRequest = async (req, res, options = {}) => {
     if (req.method === 'POST' && pathname === '/api/auth/logout') {
       const authorized = requireAuth(req, res);
       if (!authorized) return;
-      db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(authorized.token));
       json(res, 200, { ok: true });
       return;
     }
