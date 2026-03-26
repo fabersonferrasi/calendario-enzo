@@ -9,6 +9,6 @@ const server = createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`agenda backend running on http://localhost:${PORT}`);
+  console.log(`AGENDA backend running on http://localhost:${PORT}`);
   console.log(`SQLite database: ${dbPath}`);
 });

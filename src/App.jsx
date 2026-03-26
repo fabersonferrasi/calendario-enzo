@@ -638,61 +638,42 @@ const App = () => {
       const activityCount = activities.length;
 
       return (
-        <article
+        <button
           key={date.toISOString()}
-          className={`relative overflow-hidden rounded-3xl border bg-white p-3 md:p-4 transition-all ${isSelected ? 'border-indigo-500 shadow-xl ring-2 ring-indigo-500/10' : 'border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-lg'} ${isToday ? 'bg-gradient-to-r from-indigo-50 via-white to-white' : ''}`}
+          type="button"
+          onClick={() => openDayModal(date)}
+          className={`relative w-full overflow-hidden rounded-3xl border bg-white p-3 md:p-4 text-left transition-all ${isSelected ? 'border-indigo-500 shadow-xl ring-2 ring-indigo-500/10' : 'border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-lg'} ${isToday ? 'bg-gradient-to-r from-indigo-50 via-white to-white' : ''}`}
         >
           <div className={`absolute inset-y-0 left-0 w-1.5 ${stripe}`} />
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <button type="button" onClick={() => setSelectedDate(date)} className="flex-1 min-w-0 text-left">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                <div className={`shrink-0 rounded-2xl border px-3 py-3 ${palette.card} ${isSelected ? 'border-indigo-200 shadow-sm' : 'border-white/70'}`}>
-                  <div className="flex items-center gap-3 sm:flex-col sm:items-start sm:gap-2">
-                    <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] ${isToday ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700'}`}>{daysOfWeek[date.getDay()]}</span>
-                    <div>
-                      <p className="text-2xl leading-none font-black text-slate-900">{date.getDate()}</p>
-                      <p className="mt-1 text-[11px] font-black uppercase tracking-[0.25em] text-slate-500">{getShortDateLabel(date)}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="min-w-0 flex-1 space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    <p className="text-base md:text-lg font-black text-slate-900">{details?.label || 'Sem regra cadastrada'}</p>
-                    {isToday ? <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-indigo-700">Hoje</span> : null}
-                    {details?.specialWeekend ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700"><Star size={10} className="fill-amber-500" />Especial</span> : null}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-700">
-                      <span className={`w-2.5 h-2.5 rounded-full ${guardMarker}`} />
-                      {guard?.name || 'Sem guarda'}
-                    </span>
-                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">
-                      <Clock size={12} className="text-indigo-500" />
-                      {activityCount} compromisso{activityCount === 1 ? '' : 's'}
-                    </span>
-                  </div>
-                  <div className={`rounded-2xl px-3 py-2 ${details?.pickupText ? 'border border-indigo-100 bg-indigo-50' : 'border border-slate-200 bg-slate-50'}`}>
-                    <p className={`text-sm font-semibold ${details?.pickupText ? 'text-indigo-700' : 'text-slate-500'}`}>
-                      {details?.pickupText || 'Use o popup para ver a agenda completa deste dia.'}
-                    </p>
-                  </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+            <div className={`shrink-0 rounded-2xl border px-3 py-3 ${palette.card} ${isSelected ? 'border-indigo-200 shadow-sm' : 'border-white/70'}`}>
+              <div className="flex items-center gap-3 sm:flex-col sm:items-start sm:gap-2">
+                <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] ${isToday ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700'}`}>{daysOfWeek[date.getDay()]}</span>
+                <div>
+                  <p className="text-2xl leading-none font-black text-slate-900">{date.getDate()}</p>
+                  <p className="mt-1 text-[11px] font-black uppercase tracking-[0.25em] text-slate-500">{getShortDateLabel(date)}</p>
                 </div>
               </div>
-            </button>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:w-56 shrink-0">
-              <button
-                type="button"
-                onClick={() => setSelectedDate(date)}
-                className={`inline-flex items-center justify-center rounded-2xl px-3 py-2.5 text-xs font-black uppercase tracking-wide border transition-colors ${isSelected ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
-              >
-                {isSelected ? 'No painel' : 'Selecionar'}
-              </button>
-              <button type="button" onClick={() => openDayModal(date)} className="inline-flex items-center justify-center rounded-2xl px-3 py-2.5 text-xs font-black uppercase tracking-wide border border-slate-900 bg-slate-900 text-white hover:bg-slate-800">
-                Abrir popup
-              </button>
+            </div>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <p className="text-base md:text-lg font-black text-slate-900">{details?.label || 'Sem regra cadastrada'}</p>
+                {isToday ? <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-indigo-700">Hoje</span> : null}
+                {details?.specialWeekend ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700"><Star size={10} className="fill-amber-500" />Especial</span> : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-700">
+                  <span className={`w-2.5 h-2.5 rounded-full ${guardMarker}`} />
+                  {guard?.name || 'Sem guarda'}
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">
+                  <Clock size={12} className="text-indigo-500" />
+                  {activityCount} compromisso{activityCount === 1 ? '' : 's'}
+                </span>
+              </div>
             </div>
           </div>
-        </article>
+        </button>
       );
     };
 
@@ -751,11 +732,8 @@ const App = () => {
       const specialDays = weekEntries.filter((entry) => entry.details?.specialWeekend).length;
 
       return (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <div className="order-1 xl:order-2">
-            {renderSelectedPanel()}
-          </div>
-          <section className="order-2 xl:order-1 xl:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-3 md:p-5">
+        <div className="grid grid-cols-1 gap-4">
+          <section className="bg-white rounded-3xl shadow-xl border border-slate-200 p-3 md:p-5">
             <div className="border-b border-slate-100 pb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <p className="text-sm md:text-base font-black text-slate-900">Semana</p>
               <div className="flex flex-wrap gap-2">
@@ -1026,7 +1004,7 @@ const App = () => {
                 </div>
               </div>
               <div className="min-w-0">
-                <h1 className="text-base md:text-xl font-black tracking-tight leading-none truncate lowercase">agenda</h1>
+                <h1 className="text-base md:text-xl font-black tracking-tight leading-none truncate">AGENDA</h1>
                 <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-slate-400 truncate">{childProfile?.displayName || 'Jovem'}</p>
               </div>
             </div>
