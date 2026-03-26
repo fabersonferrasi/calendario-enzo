@@ -485,29 +485,47 @@ const App = () => {
       setSelectedDate(nextSelectedDate);
     };
 
-    const renderMonthCard = (date) => {
+    const renderMonthCard = (date, options = {}) => {
+      const { mode = 'month' } = options;
       const details = getDisplayRule(date, calendarData);
       const isToday = isSameDay(date, new Date());
       const isSelected = isSameDay(date, selectedDate);
       const palette = details ? (colors[details.highlightColor] || colors.slate) : colors.slate;
       const stripe = details ? (stripeMap[details.stripeMode] || palette.stripe) : 'bg-slate-300';
+      const isMonthMode = mode === 'month';
+      const firstActivity = details?.activities?.[0];
+      const secondaryActivity = details?.activities?.[1];
+      const guardName = details?.primaryParentId ? parentById[details.primaryParentId]?.name : '';
+      const markerClass = details?.primaryParentId
+        ? ((colors[parentById[details.primaryParentId]?.colorKey] || colors.slate).stripe)
+        : 'bg-slate-400';
 
       return (
         <button
           key={date.toISOString()}
           onClick={() => { setSelectedDate(date); setModalDate(date); }}
-          className={`relative h-24 md:h-28 lg:h-32 flex flex-col border-2 rounded-2xl transition-all overflow-hidden text-left ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-transparent'} ${isToday ? 'ring-2 ring-indigo-500/25' : ''}`}
+          className={`relative ${isMonthMode ? 'h-20 md:h-24 lg:h-28' : 'h-44 md:h-52'} flex flex-col border-2 rounded-2xl transition-all overflow-hidden text-left ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-transparent'} ${isToday ? 'ring-2 ring-indigo-500/25' : ''}`}
         >
-          <div className={`h-1.5 w-full ${stripe}`} />
-          <div className="p-2 md:p-3 flex-1 flex flex-col">
+          <div className={`${isMonthMode ? 'h-2' : 'h-2.5'} w-full ${stripe}`} />
+          <div className={`${isMonthMode ? 'p-2' : 'p-3 md:p-4'} flex-1 flex flex-col`}>
             <div className="flex items-center justify-between gap-2">
               <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-7 h-7 rounded-full inline-flex items-center justify-center' : 'text-slate-700'}`}>{date.getDate()}</span>
               {details?.specialWeekend ? <Star size={12} className="text-amber-500 fill-amber-500" /> : null}
             </div>
-            <div className="mt-2 space-y-1">
-              <p className="text-[10px] md:text-xs font-black text-slate-700 leading-tight line-clamp-2">{details?.label || 'Sem regra'}</p>
-              {details?.activities?.[0] ? <p className="text-[9px] md:text-[10px] text-slate-500 leading-tight line-clamp-2">{details.activities[0].timeLabel} {details.activities[0].title}</p> : null}
-            </div>
+            {isMonthMode ? (
+              <div className="mt-auto flex items-end justify-start">
+                <span className={`inline-flex w-3.5 h-3.5 rounded-full border border-white/80 ${markerClass}`} />
+              </div>
+            ) : (
+              <div className="mt-3 space-y-2">
+                <div className="inline-flex max-w-full rounded-full bg-white/85 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-700">
+                  <span className="truncate">{details?.label || 'Sem regra'}</span>
+                </div>
+                {guardName ? <p className="text-xs font-bold text-slate-700">Guarda: {guardName}</p> : null}
+                {firstActivity ? <p className="text-[11px] font-semibold text-slate-600 line-clamp-2">{firstActivity.timeLabel} {firstActivity.title}</p> : <p className="text-[11px] font-semibold text-slate-500">Sem compromisso fixo</p>}
+                {secondaryActivity ? <p className="text-[11px] text-slate-500 line-clamp-2">{secondaryActivity.timeLabel} {secondaryActivity.title}</p> : null}
+              </div>
+            )}
           </div>
         </button>
       );
@@ -528,7 +546,7 @@ const App = () => {
 
     const renderDayView = () => (
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <section className="lg:col-span-3 bg-gradient-to-br from-slate-900 to-indigo-900 text-white rounded-3xl p-4 md:p-6 shadow-xl">
+        <section className="lg:col-span-3 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white rounded-3xl p-4 md:p-6 shadow-xl border border-slate-700">
           <div className="flex items-center justify-between gap-3">
             <button type="button" onClick={() => moveRange(-1)} className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20"><ChevronLeft size={18} /></button>
             <div className="text-center">
@@ -538,7 +556,17 @@ const App = () => {
             </div>
             <button type="button" onClick={() => moveRange(1)} className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20"><ChevronRight size={18} /></button>
           </div>
-          <div className="mt-4 bg-white/10 border border-white/20 rounded-2xl p-4 space-y-3">
+          <div className="mt-4 bg-white text-slate-900 rounded-2xl p-4 md:p-5 space-y-3 shadow-xl">
+            <div className="flex items-center justify-between rounded-2xl bg-slate-900 text-white px-4 py-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-200">Com a guarda</p>
+                <p className="text-lg font-black">{selectedRule?.primaryParentId ? parentById[selectedRule.primaryParentId]?.name : 'Nao definido'}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold text-indigo-100">{selectedRule?.label || 'Sem regra'}</p>
+                {selectedRule?.specialWeekend ? <p className="text-[10px] font-black uppercase tracking-wide text-amber-300">Fim de semana especial</p> : null}
+              </div>
+            </div>
             {renderRuleDetails(selectedDate, selectedRule)}
           </div>
         </section>
@@ -555,8 +583,8 @@ const App = () => {
       return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <section className="lg:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-3 md:p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-2">
-              {weekDates.map((date) => renderMonthCard(date))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {weekDates.map((date) => renderMonthCard(date, { mode: 'week' }))}
             </div>
           </section>
           {renderSelectedPanel()}
@@ -573,10 +601,15 @@ const App = () => {
       return (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           <section className="lg:col-span-3 bg-white rounded-3xl shadow-xl border border-slate-200 p-3 md:p-4">
+            <div className="mb-3 flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
+              <span className="inline-flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-500" /> Pai</span>
+              <span className="inline-flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-rose-500" /> Mae</span>
+              <span className="inline-flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-slate-500" /> Troca</span>
+            </div>
             <div className="grid grid-cols-7 gap-2 md:gap-3">
               {daysOfWeek.map((day) => <div key={day} className="text-center font-black text-slate-400 py-2 uppercase text-[9px] tracking-widest">{day}</div>)}
               {emptyCells}
-              {dates.map((date) => renderMonthCard(date))}
+              {dates.map((date) => renderMonthCard(date, { mode: 'month' }))}
             </div>
           </section>
           <section className="lg:col-span-2">
