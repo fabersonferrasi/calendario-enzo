@@ -77,7 +77,7 @@ const convertImageFileToDataUrl = async (file) => {
 
   try {
     const image = await loadImageElement(source);
-    const maxDimension = 720;
+    const maxDimension = 320;
     const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
     const width = Math.max(1, Math.round(image.width * scale));
     const height = Math.max(1, Math.round(image.height * scale));
@@ -88,10 +88,20 @@ const convertImageFileToDataUrl = async (file) => {
 
     canvas.width = width;
     canvas.height = height;
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
     context.drawImage(image, 0, 0, width, height);
+    const qualities = [0.82, 0.72, 0.64, 0.56];
+    const maxDataUrlLength = 180000;
 
-    const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-    return canvas.toDataURL(outputType, outputType === 'image/png' ? undefined : 0.86);
+    for (const quality of qualities) {
+      const output = canvas.toDataURL('image/jpeg', quality);
+      if (output.length <= maxDataUrlLength) {
+        return output;
+      }
+    }
+
+    return canvas.toDataURL('image/jpeg', 0.5);
   } catch (_error) {
     return source;
   }
@@ -474,6 +484,7 @@ const App = () => {
       const photoUrl = await convertImageFileToDataUrl(file);
       setChildForm((state) => ({ ...state, photoUrl }));
       setChildPhotoState({ loading: false, error: '', fileName: file.name });
+      setAdminState((state) => ({ ...state, error: '', message: 'Foto pronta. Clique em Salvar perfil para aplicar.' }));
     } catch (error) {
       setChildPhotoState({ loading: false, error: error.message || 'Nao foi possivel preparar a foto.', fileName: '' });
     } finally {
@@ -990,7 +1001,7 @@ const App = () => {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className="relative shrink-0">
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-full p-[2px] bg-gradient-to-br from-sky-400 via-indigo-500 to-rose-400 shadow-lg">
+                <div className="w-14 h-14 md:w-20 md:h-20 rounded-full p-[2px] bg-gradient-to-br from-sky-400 via-indigo-500 to-rose-400 shadow-lg">
                   <div className="w-full h-full rounded-full overflow-hidden border border-white/80 bg-slate-100">
                     {childProfile?.photoUrl ? (
                       <img src={childProfile.photoUrl} alt={childProfile.displayName || 'Jovem'} className="w-full h-full object-cover" />

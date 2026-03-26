@@ -166,7 +166,14 @@ const getLocalDb = () => {
 };
 
 const setLocalDb = (value) => {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+  } catch (error) {
+    if (error?.name === 'QuotaExceededError') {
+      throw new Error('A foto ficou grande demais para salvar. Tente outra imagem menor.');
+    }
+    throw error;
+  }
   return value;
 };
 
@@ -384,6 +391,9 @@ const request = async (url, options = {}) => {
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
+    if (response.status === 413) {
+      throw new Error('A foto ficou grande demais para salvar. Tente outra imagem menor.');
+    }
     if (response.status === 404 || response.status >= 500) {
       const fallbackError = new Error('API_UNAVAILABLE');
       fallbackError.code = 'API_UNAVAILABLE';
