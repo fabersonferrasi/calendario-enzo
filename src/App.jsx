@@ -24,7 +24,7 @@ import {
 import { api } from './api';
 
 const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
-const months = ['Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 const colors = {
   blue: { card: 'bg-blue-50 border-blue-200', stripe: 'bg-blue-500', icon: 'text-blue-500' },
@@ -56,6 +56,7 @@ const toSelectValue = (value) => (value === null || value === undefined ? '' : S
 const parseNullableInt = (value) => (value === '' ? null : Number(value));
 const isSameDay = (left, right) => left.toDateString() === right.toDateString();
 const getFullDateLabel = (date) => `${daysOfWeek[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}`;
+const capitalize = (value) => value.charAt(0).toUpperCase() + value.slice(1);
 
 const getNthWeekdayDate = (year, month, weekday, occurrence) => {
   let count = 0;
@@ -460,7 +461,7 @@ const App = () => {
         }
         return `${start.getDate()} ${months[start.getMonth()]} - ${end.getDate()} ${months[end.getMonth()]}`;
       }
-      return `${months[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+      return `${capitalize(viewDate.toLocaleDateString('pt-BR', { month: 'long' }))} ${viewDate.getFullYear()}`;
     })();
 
     const moveRange = (direction) => {
@@ -505,7 +506,7 @@ const App = () => {
         <button
           key={date.toISOString()}
           onClick={() => { setSelectedDate(date); setModalDate(date); }}
-          className={`relative ${isMonthMode ? 'h-20 md:h-24 lg:h-28' : isWeekMode ? 'h-52 md:h-56' : 'h-44 md:h-52'} flex flex-col border-2 rounded-2xl transition-all overflow-hidden text-left ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-transparent'} ${isToday ? 'ring-2 ring-indigo-500/25' : ''}`}
+          className={`relative ${isMonthMode ? 'h-20 md:h-24 lg:h-28' : isWeekMode ? 'h-52 md:h-56' : 'h-44 md:h-52'} flex flex-col border-2 rounded-2xl transition-all overflow-hidden text-left ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-transparent'} ${isToday ? 'ring-2 ring-indigo-500/25' : ''} hover:shadow-md`}
         >
           <div className={`${isMonthMode ? 'h-2' : 'h-2.5'} w-full ${stripe}`} />
           <div className={`${isMonthMode ? 'p-2' : 'p-3 md:p-4'} flex-1 flex flex-col`}>
@@ -523,7 +524,7 @@ const App = () => {
               </div>
             ) : (
               <div className="mt-3 space-y-2">
-                {isWeekMode ? <p className="text-xs font-black text-slate-600">{date.getDate()} {months[date.getMonth()]}</p> : null}
+                {isWeekMode ? <p className="text-xs font-black text-slate-600">{capitalize(date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }))}</p> : null}
                 <div className="inline-flex max-w-full rounded-full bg-white/85 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-700">
                   <span className="truncate">{details?.label || 'Sem regra'}</span>
                 </div>
@@ -550,8 +551,8 @@ const App = () => {
     );
 
     const renderDayView = () => (
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <section className="lg:col-span-3 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white rounded-3xl p-4 md:p-6 shadow-xl border border-slate-700">
+      <div className="grid grid-cols-1 gap-4">
+        <section className="bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white rounded-3xl p-4 md:p-7 shadow-xl border border-slate-700 min-h-[65vh]">
           <div className="flex items-center justify-between gap-3">
             <button type="button" onClick={() => moveRange(-1)} className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20"><ChevronLeft size={18} /></button>
             <div className="text-center">
@@ -561,11 +562,11 @@ const App = () => {
             </div>
             <button type="button" onClick={() => moveRange(1)} className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20"><ChevronRight size={18} /></button>
           </div>
-          <div className="mt-4 bg-white text-slate-900 rounded-2xl p-4 md:p-5 space-y-3 shadow-xl">
-            <div className="flex items-center justify-between rounded-2xl bg-slate-900 text-white px-4 py-3">
+          <div className="mt-5 bg-white text-slate-900 rounded-2xl p-4 md:p-6 space-y-3 shadow-xl">
+            <div className="flex items-center justify-between rounded-2xl bg-slate-950 text-white px-4 py-3 md:px-5 md:py-4">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-200">Com a guarda</p>
-                <p className="text-lg font-black">{selectedRule?.primaryParentId ? parentById[selectedRule.primaryParentId]?.name : 'Nao definido'}</p>
+                <p className="text-xl md:text-2xl font-black">{selectedRule?.primaryParentId ? parentById[selectedRule.primaryParentId]?.name : 'Nao definido'}</p>
               </div>
               <div className="text-right">
                 <p className="text-xs font-bold text-indigo-100">{selectedRule?.label || 'Sem regra'}</p>
@@ -574,9 +575,6 @@ const App = () => {
             </div>
             {renderRuleDetails(selectedDate, selectedRule)}
           </div>
-        </section>
-        <section className="lg:col-span-2">
-          {renderSelectedPanel()}
         </section>
       </div>
     );
@@ -587,8 +585,8 @@ const App = () => {
 
       return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <section className="lg:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-3 md:p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          <section className="lg:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-3 md:p-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {weekDates.map((date) => renderMonthCard(date, { mode: 'week' }))}
             </div>
           </section>
@@ -628,19 +626,19 @@ const App = () => {
       <>
         {calendarError && <div className="mx-2 md:mx-0 p-4 rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-sm font-semibold">{calendarError}</div>}
         <div className="px-2 md:px-0 space-y-4">
-          <div className="bg-slate-900 text-white rounded-3xl shadow-xl p-3 md:p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="inline-flex bg-slate-800 p-1 rounded-2xl border border-slate-700">
-              <button onClick={() => setCalendarView('day')} className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${calendarView === 'day' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:text-white'}`}>Dia</button>
-              <button onClick={() => setCalendarView('week')} className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${calendarView === 'week' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:text-white'}`}>Semana</button>
-              <button onClick={() => setCalendarView('month')} className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${calendarView === 'month' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:text-white'}`}>Mes</button>
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-3 md:p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="inline-flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+              <button onClick={() => setCalendarView('day')} className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${calendarView === 'day' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}>Dia</button>
+              <button onClick={() => setCalendarView('week')} className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${calendarView === 'week' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}>Semana</button>
+              <button onClick={() => setCalendarView('month')} className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${calendarView === 'month' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}>Mês</button>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <button onClick={() => moveRange(-1)} className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700"><ChevronLeft size={18} /></button>
+              <button onClick={() => moveRange(-1)} className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700"><ChevronLeft size={18} /></button>
               <div className="text-center px-3">
-                <p className="text-[10px] uppercase tracking-[0.25em] text-indigo-200 font-black">Periodo</p>
-                <p className="text-sm md:text-base font-black">{periodLabel}</p>
+                <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-black">Período</p>
+                <p className="text-sm md:text-base font-black text-slate-900">{periodLabel}</p>
               </div>
-              <button onClick={() => moveRange(1)} className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700"><ChevronRight size={18} /></button>
+              <button onClick={() => moveRange(1)} className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700"><ChevronRight size={18} /></button>
             </div>
           </div>
 
@@ -805,24 +803,24 @@ const App = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-100 font-sans text-slate-900 pb-24 md:pb-10">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 font-sans text-slate-900 pb-24 md:pb-10">
       <div className="max-w-6xl mx-auto md:p-4 space-y-4">
-        <header className="bg-slate-900 text-white p-4 md:rounded-3xl shadow-xl sticky top-0 z-40 space-y-4">
+        <header className="bg-white text-slate-900 p-4 md:rounded-3xl shadow-lg border border-slate-200 sticky top-0 z-40">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-500 rounded-xl shadow-lg shadow-indigo-500/20"><CalendarIcon size={24} /></div>
+              <div className="p-2 bg-slate-900 text-white rounded-xl shadow-lg"><CalendarIcon size={24} /></div>
               <div>
                 <h1 className="text-xl font-black tracking-tight leading-none">Agenda Enzo</h1>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {page === 'calendar' ? (
-                <button onClick={openAdminPage} aria-label="Abrir admin" title="Admin" className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-colors text-sm font-bold"><Shield size={16} /></button>
+                <button onClick={openAdminPage} aria-label="Abrir admin" title="Admin" className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-colors text-sm font-bold"><Shield size={16} /></button>
               ) : (
-                <button onClick={() => { setAdminIntent(false); setPage('calendar'); }} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-colors text-sm font-bold"><ArrowLeft size={16} /> Voltar para agenda</button>
+                <button onClick={() => { setAdminIntent(false); setPage('calendar'); }} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-colors text-sm font-bold"><ArrowLeft size={16} /> Voltar para agenda</button>
               )}
               {session ? (
-                <button onClick={handleLogout} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-400/30 hover:bg-rose-500/30 transition-colors text-sm font-bold"><LogOut size={16} /> Sair</button>
+                <button onClick={handleLogout} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 transition-colors text-sm font-bold text-rose-700"><LogOut size={16} /> Sair</button>
               ) : null}
             </div>
           </div>
