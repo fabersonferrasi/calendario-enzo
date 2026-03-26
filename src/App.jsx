@@ -58,6 +58,7 @@ const parseNullableInt = (value) => (value === '' ? null : Number(value));
 const isSameDay = (left, right) => left.toDateString() === right.toDateString();
 const getFullDateLabel = (date) => `${daysOfWeek[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}`;
 const capitalize = (value) => value.charAt(0).toUpperCase() + value.slice(1);
+const getShortDateLabel = (date) => capitalize(date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }));
 
 const getNthWeekdayDate = (year, month, weekday, occurrence) => {
   let count = 0;
@@ -430,6 +431,8 @@ const App = () => {
 
     const dateIsToday = isSameDay(date, new Date());
     const palette = colors[rule.highlightColor] || colors.slate;
+    const guardName = rule.primaryParentId ? parentById[rule.primaryParentId]?.name : '';
+    const activities = rule.activities || [];
 
     return (
       <>
@@ -447,15 +450,18 @@ const App = () => {
             </div>
           </div>
         ) : null}
-        <div className={`p-3 rounded-2xl flex items-center justify-between border-2 ${palette.card}`}>
-          <div className="flex items-center gap-2">
+        <div className={`p-3 rounded-2xl flex items-center justify-between gap-3 border-2 ${palette.card}`}>
+          <div className="flex items-center gap-2 min-w-0">
             <User size={18} className={(colors[parentById[rule.primaryParentId]?.colorKey] || colors.slate).icon} />
-            <span className="font-black text-xs uppercase tracking-tight">{rule.label}</span>
+            <div className="min-w-0">
+              <p className="font-black text-xs uppercase tracking-tight truncate">{rule.label}</p>
+              <p className="text-[11px] font-bold text-slate-600 truncate">{guardName || 'Responsavel nao definido'}</p>
+            </div>
           </div>
           {rule.specialWeekend && <Star size={16} className="text-amber-500 fill-amber-500" />}
         </div>
         <div className={`space-y-2 ${compact ? 'max-h-72 overflow-y-auto pr-1' : ''}`}>
-          {rule.activities.map((activity) => {
+          {activities.length ? activities.map((activity) => {
             const Icon = iconMap[activity.iconKey] || Clock;
             return (
               <div key={activity.id} className="flex items-start gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
@@ -466,7 +472,11 @@ const App = () => {
                 </div>
               </div>
             );
-          })}
+          }) : (
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
+              <p className="text-xs font-bold text-slate-600">Sem compromisso fixo para este dia.</p>
+            </div>
+          )}
         </div>
         {rule.pickupText ? (
           <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-100 flex items-center gap-2">
@@ -518,18 +528,12 @@ const App = () => {
       setSelectedDate(nextSelectedDate);
     };
 
-    const renderMonthCard = (date, options = {}) => {
-      const { mode = 'month' } = options;
+    const renderMonthCard = (date) => {
       const details = getDisplayRule(date, calendarData);
       const isToday = isSameDay(date, new Date());
       const isSelected = isSameDay(date, selectedDate);
       const palette = details ? (colors[details.highlightColor] || colors.slate) : colors.slate;
       const stripe = details ? (stripeMap[details.stripeMode] || palette.stripe) : 'bg-slate-300';
-      const isMonthMode = mode === 'month';
-      const isWeekMode = mode === 'week';
-      const firstActivity = details?.activities?.[0];
-      const secondaryActivity = details?.activities?.[1];
-      const guardName = details?.primaryParentId ? parentById[details.primaryParentId]?.name : '';
       const markerClass = details?.primaryParentId
         ? ((colors[parentById[details.primaryParentId]?.colorKey] || colors.slate).stripe)
         : 'bg-slate-400';
@@ -537,44 +541,142 @@ const App = () => {
       return (
         <button
           key={date.toISOString()}
+          type="button"
           onClick={() => { setSelectedDate(date); setModalDate(date); }}
-          className={`relative ${isMonthMode ? 'h-20 md:h-24 lg:h-28' : isWeekMode ? 'h-52 md:h-56' : 'h-44 md:h-52'} flex flex-col border-2 rounded-2xl transition-all overflow-hidden text-left ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-transparent'} ${isToday ? 'ring-2 ring-indigo-500/25' : ''} hover:shadow-md`}
+          className={`relative h-20 md:h-24 lg:h-28 flex flex-col border-2 rounded-2xl transition-all overflow-hidden text-left ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-transparent'} ${isToday ? 'ring-2 ring-indigo-500/25' : ''} hover:shadow-md`}
         >
-          <div className={`${isMonthMode ? 'h-2' : 'h-2.5'} w-full ${stripe}`} />
-          <div className={`${isMonthMode ? 'p-2' : 'p-3 md:p-4'} flex-1 flex flex-col`}>
+          <div className={`h-2 w-full ${stripe}`} />
+          <div className="p-2 flex-1 flex flex-col">
             <div className="flex items-center justify-between gap-2">
-              {isWeekMode ? (
-                <span className={`text-[10px] md:text-xs font-black uppercase tracking-[0.2em] px-2.5 py-1 rounded-full ${isToday ? 'bg-indigo-600 text-white' : 'bg-white/85 text-slate-700'}`}>{daysOfWeek[date.getDay()]}</span>
-              ) : (
-                <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-7 h-7 rounded-full inline-flex items-center justify-center' : 'text-slate-700'}`}>{date.getDate()}</span>
-              )}
+              <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-7 h-7 rounded-full inline-flex items-center justify-center' : 'text-slate-700'}`}>{date.getDate()}</span>
               {details?.specialWeekend ? <Star size={12} className="text-amber-500 fill-amber-500" /> : null}
             </div>
-            {isMonthMode ? (
-              <div className="mt-auto flex items-end justify-start">
-                <span className={`inline-flex w-3.5 h-3.5 rounded-full border border-white/80 ${markerClass}`} />
-              </div>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {isWeekMode ? <p className="text-xs font-black text-slate-600">{capitalize(date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }))}</p> : null}
-                <div className="inline-flex max-w-full rounded-full bg-white/85 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-700">
-                  <span className="truncate">{details?.label || 'Sem regra'}</span>
+            <div className="mt-auto flex items-end justify-start">
+              <span className={`inline-flex w-3.5 h-3.5 rounded-full border border-white/80 ${markerClass}`} />
+            </div>
+          </div>
+        </button>
+      );
+    };
+
+    const renderWeekCard = (date, details = getDisplayRule(date, calendarData)) => {
+      const isToday = isSameDay(date, new Date());
+      const isSelected = isSameDay(date, selectedDate);
+      const palette = details ? (colors[details.highlightColor] || colors.slate) : colors.slate;
+      const stripe = details ? (stripeMap[details.stripeMode] || palette.stripe) : 'bg-slate-300';
+      const guard = details?.primaryParentId ? parentById[details.primaryParentId] : null;
+      const guardMarker = guard ? (colors[guard.colorKey] || colors.slate).stripe : 'bg-slate-300';
+      const activities = details?.activities || [];
+      const previewActivities = activities.slice(0, 3);
+      const extraActivities = Math.max(activities.length - previewActivities.length, 0);
+
+      return (
+        <button
+          key={date.toISOString()}
+          type="button"
+          onClick={() => setSelectedDate(date)}
+          className={`group relative overflow-hidden rounded-3xl border bg-white p-3 md:p-4 text-left transition-all ${isSelected ? 'border-indigo-500 shadow-xl ring-2 ring-indigo-500/10' : 'border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-lg'} ${isToday ? 'bg-gradient-to-r from-indigo-50 via-white to-white' : ''}`}
+        >
+          <div className={`absolute inset-y-0 left-0 w-1.5 ${stripe}`} />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
+            <div className={`rounded-2xl border p-4 lg:w-48 shrink-0 ${palette.card} ${isSelected ? 'border-indigo-200' : 'border-white/70'}`}>
+              <div className="flex items-start justify-between gap-3 lg:flex-col lg:items-start lg:h-full">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] ${isToday ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700'}`}>{daysOfWeek[date.getDay()]}</span>
+                    {details?.specialWeekend ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700">
+                        <Star size={10} className="fill-amber-500" />
+                        Especial
+                      </span>
+                    ) : null}
+                  </div>
+                  <div>
+                    <p className="text-2xl md:text-3xl leading-none font-black text-slate-900">{date.getDate()}</p>
+                    <p className="mt-1 text-[11px] font-black uppercase tracking-[0.25em] text-slate-500">{getShortDateLabel(date)}</p>
+                  </div>
                 </div>
-                {guardName ? <p className="text-xs font-bold text-slate-700">Guarda: {guardName}</p> : null}
-                {firstActivity ? <p className="text-[11px] font-semibold text-slate-600 line-clamp-2">{firstActivity.timeLabel} {firstActivity.title}</p> : <p className="text-[11px] font-semibold text-slate-500">Sem compromisso fixo</p>}
-                {secondaryActivity ? <p className="text-[11px] text-slate-500 line-clamp-2">{secondaryActivity.timeLabel} {secondaryActivity.title}</p> : null}
+                <div className="text-right lg:text-left">
+                  {isToday ? <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-600">Hoje</p> : null}
+                  {isSelected ? <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-700">Painel aberto</p> : <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Toque para focar</p>}
+                </div>
               </div>
-            )}
+            </div>
+
+            <div className="min-w-0 flex-1 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(240px,280px)]">
+              <div className="space-y-3 min-w-0">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Rotina do dia</p>
+                    <p className="text-base md:text-lg font-black text-slate-900 truncate">{details?.label || 'Sem regra cadastrada'}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-700">
+                      <span className={`w-2.5 h-2.5 rounded-full ${guardMarker}`} />
+                      {guard?.name || 'Sem guarda'}
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">
+                      <Clock size={12} className="text-indigo-500" />
+                      {activities.length} compromisso{activities.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                </div>
+
+                {details?.pickupText ? (
+                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-3 py-2 flex items-start gap-2">
+                    <Info size={14} className="text-indigo-500 mt-0.5 shrink-0" />
+                    <p className="text-xs font-bold text-indigo-700">{details.pickupText}</p>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="text-xs font-semibold text-slate-500">Dia sem observacao adicional cadastrada.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 md:p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Agenda</p>
+                  {extraActivities ? <span className="text-[10px] font-black uppercase tracking-wide text-slate-400">+{extraActivities} extra</span> : null}
+                </div>
+                <div className="mt-3 space-y-2">
+                  {previewActivities.length ? previewActivities.map((activity) => {
+                    const Icon = iconMap[activity.iconKey] || Clock;
+                    return (
+                      <div key={activity.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+                        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-indigo-500">
+                          <Icon size={15} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{activity.timeLabel}</p>
+                          <p className="text-sm font-bold text-slate-700 leading-tight">{activity.title}</p>
+                        </div>
+                      </div>
+                    );
+                  }) : (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-4">
+                      <p className="text-sm font-semibold text-slate-500">Sem compromisso fixo para este dia.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </button>
       );
     };
 
     const renderSelectedPanel = () => (
-      <aside className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden h-fit">
-        <div className="bg-slate-50 p-4 border-b border-slate-200 flex items-center justify-between">
-          <h2 className="font-black text-slate-800 text-sm flex items-center gap-2"><Clock size={16} className="text-indigo-500" /> Detalhes</h2>
-          <div className="text-[10px] font-bold bg-indigo-500 text-white px-2 py-1 rounded-full shadow-sm">{selectedDate.getDate()} {daysOfWeek[selectedDate.getDay()]}</div>
+      <aside className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden h-fit xl:sticky xl:top-28">
+        <div className="bg-slate-950 text-white p-4 border-b border-slate-800">
+          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-300">Foco do dia</p>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-black text-sm md:text-base flex items-center gap-2"><Clock size={16} className="text-indigo-300" /> {getFullDateLabel(selectedDate)}</h2>
+              {isSameDay(selectedDate, new Date()) ? <p className="mt-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Hoje na agenda</p> : null}
+            </div>
+            <div className="text-[10px] font-bold bg-white/10 text-white px-2 py-1 rounded-full shadow-sm">{daysOfWeek[selectedDate.getDay()]}</div>
+          </div>
         </div>
         <div className="p-4 space-y-3">
           {renderRuleDetails(selectedDate, selectedRule)}
@@ -614,12 +716,29 @@ const App = () => {
     const renderWeekView = () => {
       const start = getStartOfWeek(selectedDate);
       const weekDates = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+      const weekEntries = weekDates.map((date) => ({ date, details: getDisplayRule(date, calendarData) }));
+      const totalActivities = weekEntries.reduce((total, entry) => total + (entry.details?.activities?.length || 0), 0);
+      const specialDays = weekEntries.filter((entry) => entry.details?.specialWeekend).length;
 
       return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <section className="lg:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-3 md:p-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {weekDates.map((date) => renderMonthCard(date, { mode: 'week' }))}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <section className="xl:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-3 md:p-5">
+            <div className="border-b border-slate-100 pb-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Visao da semana</p>
+                  <p className="text-lg md:text-xl font-black text-slate-900">Cards reorganizados para leitura rapida da rotina</p>
+                  <p className="text-xs font-semibold text-slate-500">Toque em um dia para atualizar o painel de detalhes ao lado.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">7 dias</span>
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">{totalActivities} compromissos</span>
+                  {specialDays ? <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700">{specialDays} dia{specialDays === 1 ? '' : 's'} especial{specialDays === 1 ? '' : 'is'}</span> : null}
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 space-y-3">
+              {weekEntries.map(({ date, details }) => renderWeekCard(date, details))}
             </div>
           </section>
           {renderSelectedPanel()}
@@ -644,7 +763,7 @@ const App = () => {
             <div className="grid grid-cols-7 gap-2 md:gap-3">
               {daysOfWeek.map((day) => <div key={day} className="text-center font-black text-slate-400 py-2 uppercase text-[9px] tracking-widest">{day}</div>)}
               {emptyCells}
-              {dates.map((date) => renderMonthCard(date, { mode: 'month' }))}
+              {dates.map((date) => renderMonthCard(date))}
             </div>
           </section>
           <section className="lg:col-span-2">
