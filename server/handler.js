@@ -97,6 +97,15 @@ const getWeekendConfig = () => db.prepare(`
   WHERE wc.id = 1
 `).get();
 
+const getChildProfile = () => db.prepare(`
+  SELECT
+    cp.id,
+    cp.display_name AS displayName,
+    cp.photo_url AS photoUrl
+  FROM child_profile cp
+  WHERE cp.id = 1
+`).get();
+
 const getCalendarPayload = () => ({
   meta: {
     databasePath: dbPath,
@@ -105,6 +114,7 @@ const getCalendarPayload = () => ({
   parents: listParents(),
   weeklyRules: listWeeklyRules(),
   weekendConfig: getWeekendConfig(),
+  childProfile: getChildProfile(),
 });
 
 const sanitizeParent = (body) => ({
@@ -141,6 +151,11 @@ const sanitizeWeekendConfig = (body) => ({
   label: String(body.label || '').trim(),
   pickup_text: String(body.pickupText || '').trim(),
   highlight_color: String(body.highlightColor || 'rose').trim(),
+});
+
+const sanitizeChildProfile = (body) => ({
+  display_name: String(body.displayName || '').trim(),
+  photo_url: String(body.photoUrl || '').trim(),
 });
 
 const encodeBase64Url = (value) => Buffer.from(value).toString('base64url');
@@ -446,6 +461,21 @@ export const handleRequest = async (req, res, options = {}) => {
           WHERE id = 1
         `).run(payload);
         json(res, 200, getWeekendConfig());
+        return;
+      }
+
+      if (req.method === 'PUT' && pathname === '/api/admin/child-profile') {
+        const payload = sanitizeChildProfile(req.body);
+        if (!payload.display_name) {
+          json(res, 400, { error: 'Nome de exibicao do jovem e obrigatorio.' });
+          return;
+        }
+        db.prepare(`
+          UPDATE child_profile
+          SET display_name = @display_name, photo_url = @photo_url
+          WHERE id = 1
+        `).run(payload);
+        json(res, 200, getChildProfile());
         return;
       }
 

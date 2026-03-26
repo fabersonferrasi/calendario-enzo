@@ -148,6 +148,7 @@ const App = () => {
   const [activityForm, setActivityForm] = useState(emptyActivityForm);
   const [editingActivityId, setEditingActivityId] = useState(null);
   const [weekendForm, setWeekendForm] = useState({ occurrence: 2, startWeekday: 5, durationDays: 3, parentId: '', label: '', pickupText: '', highlightColor: 'rose' });
+  const [childForm, setChildForm] = useState({ displayName: '', photoUrl: '' });
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -170,6 +171,14 @@ const App = () => {
     });
   };
 
+  const syncChildForm = (payload) => {
+    if (!payload?.childProfile) return;
+    setChildForm({
+      displayName: payload.childProfile.displayName || '',
+      photoUrl: payload.childProfile.photoUrl || '',
+    });
+  };
+
   const loadCalendar = async () => {
     setLoadingCalendar(true);
     setCalendarError('');
@@ -177,6 +186,7 @@ const App = () => {
       const payload = await api.getCalendar();
       setCalendarData(payload);
       syncWeekendForm(payload);
+      syncChildForm(payload);
     } catch (error) {
       setCalendarError(error.message);
     } finally {
@@ -191,6 +201,7 @@ const App = () => {
       setSession(payload.user);
       setCalendarData(payload);
       syncWeekendForm(payload);
+      syncChildForm(payload);
       setAdminState((state) => ({ ...state, loading: false }));
       return true;
     } catch (error) {
@@ -233,6 +244,7 @@ const App = () => {
   const parents = calendarData?.parents || [];
   const weeklyRules = calendarData?.weeklyRules || [];
   const allActivities = weeklyRules.flatMap((rule) => rule.activities.map((activity) => ({ ...activity, weekday: rule.weekday, ruleLabel: rule.label })));
+  const childProfile = calendarData?.childProfile || null;
 
   const refreshAll = async () => {
     if (session || window.localStorage.getItem('agenda_enzo_token')) {
@@ -387,6 +399,18 @@ const App = () => {
     try {
       await api.updateWeekendConfig(payload);
       setAdminState((state) => ({ ...state, message: 'Fim de semana especial atualizado.' }));
+      await refreshAll();
+    } catch (error) {
+      setAdminState((state) => ({ ...state, error: error.message }));
+    }
+  };
+
+  const saveChildProfile = async (event) => {
+    event.preventDefault();
+    setAdminState((state) => ({ ...state, error: '', message: '' }));
+    try {
+      await api.updateChildProfile(childForm);
+      setAdminState((state) => ({ ...state, message: 'Perfil do jovem atualizado.' }));
       await refreshAll();
     } catch (error) {
       setAdminState((state) => ({ ...state, error: error.message }));
@@ -650,6 +674,22 @@ const App = () => {
             </div>
           </div>
 
+          <section className="bg-white rounded-3xl shadow-xl border border-slate-200 p-4 md:p-5">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-sm shrink-0">
+                {childProfile?.photoUrl ? (
+                  <img src={childProfile.photoUrl} alt={childProfile.displayName || 'Jovem'} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-black uppercase">Sem foto</div>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-black">Guarda compartilhada de</p>
+                <h2 className="text-xl md:text-2xl font-black text-slate-900 truncate">{childProfile?.displayName || 'Jovem'}</h2>
+              </div>
+            </div>
+          </section>
+
           {loadingCalendar ? (
             <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8 text-center text-slate-500 font-semibold">Carregando agenda...</div>
           ) : calendarError ? (
@@ -711,6 +751,22 @@ const App = () => {
       {adminState.error && <div className="p-3 rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-sm font-semibold">{adminState.error}</div>}
       {adminState.message && <div className="p-3 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold">{adminState.message}</div>}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <section className="xl:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-4 space-y-3">
+          <p className="font-black text-sm">Perfil do jovem</p>
+          <form onSubmit={saveChildProfile} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+            <div className="md:col-span-2 space-y-3">
+              <input value={childForm.displayName} onChange={(event) => setChildForm((state) => ({ ...state, displayName: event.target.value }))} placeholder="Nome de exibicao" className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm font-semibold" />
+              <input value={childForm.photoUrl} onChange={(event) => setChildForm((state) => ({ ...state, photoUrl: event.target.value }))} placeholder="URL da foto" className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm font-semibold" />
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
+                {childForm.photoUrl ? <img src={childForm.photoUrl} alt={childForm.displayName || 'Jovem'} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-slate-400 uppercase">Sem foto</div>}
+              </div>
+              <button type="submit" className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-slate-900 text-white text-sm font-black"><Save size={16} /> Salvar</button>
+            </div>
+          </form>
+        </section>
+
         <section className="bg-white rounded-3xl shadow-xl border border-slate-200 p-4 space-y-3">
           <div className="flex items-center justify-between"><p className="font-black text-sm">Responsaveis</p>{editingParentId && <button type="button" onClick={resetParentForm} className="text-xs font-bold text-slate-500">Cancelar</button>}</div>
           <form onSubmit={saveParent} className="grid grid-cols-1 md:grid-cols-3 gap-2">

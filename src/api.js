@@ -138,6 +138,11 @@ const initialData = {
     pickupText: 'Mae busca para o FDS',
     highlightColor: 'rose',
   },
+  childProfile: {
+    id: 1,
+    displayName: 'Enzo',
+    photoUrl: 'https://images.unsplash.com/photo-1503919545889-aef636e10ad4?auto=format&fit=crop&w=400&q=80',
+  },
   adminUser: {
     id: 1,
     username: 'admin',
@@ -173,6 +178,7 @@ const buildCalendarPayload = (db) => ({
   parents: clone(db.parents),
   weeklyRules: clone(db.weeklyRules),
   weekendConfig: clone(db.weekendConfig),
+  childProfile: clone(db.childProfile),
 });
 
 const ensureAuthenticated = () => {
@@ -340,6 +346,17 @@ const localApi = {
     setLocalDb(db);
     return clone(db.weekendConfig);
   },
+  updateChildProfile: async (payload) => {
+    ensureAuthenticated();
+    const db = getLocalDb();
+    db.childProfile = {
+      ...db.childProfile,
+      displayName: String(payload.displayName || '').trim(),
+      photoUrl: String(payload.photoUrl || '').trim(),
+    };
+    setLocalDb(db);
+    return clone(db.childProfile);
+  },
 };
 
 const request = async (url, options = {}) => {
@@ -404,4 +421,5 @@ export const api = {
   updateActivity: (id, payload) => withFallback(() => request(`/api/admin/activities/${id}`, { method: 'PUT', body: JSON.stringify(payload) }), () => localApi.updateActivity(id, payload)),
   deleteActivity: (id) => withFallback(() => request(`/api/admin/activities/${id}`, { method: 'DELETE' }), () => localApi.deleteActivity(id)),
   updateWeekendConfig: (payload) => withFallback(() => request('/api/admin/weekend-config', { method: 'PUT', body: JSON.stringify(payload) }), () => localApi.updateWeekendConfig(payload)),
+  updateChildProfile: (payload) => withFallback(() => request('/api/admin/child-profile', { method: 'PUT', body: JSON.stringify(payload) }), () => localApi.updateChildProfile(payload)),
 };

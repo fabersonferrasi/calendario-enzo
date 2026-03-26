@@ -81,6 +81,12 @@ const runMigrations = () => {
       password_hash TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS child_profile (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      display_name TEXT NOT NULL,
+      photo_url TEXT NOT NULL DEFAULT ''
+    );
+
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -284,10 +290,23 @@ const seedAdmin = () => {
   `).run('admin', 'Administrador', salt, hash);
 };
 
+const seedChildProfile = () => {
+  const count = db.prepare('SELECT COUNT(*) AS count FROM child_profile').get().count;
+  if (count > 0) {
+    return;
+  }
+
+  db.prepare(`
+    INSERT INTO child_profile (id, display_name, photo_url)
+    VALUES (1, ?, ?)
+  `).run('Enzo', 'https://images.unsplash.com/photo-1503919545889-aef636e10ad4?auto=format&fit=crop&w=400&q=80');
+};
+
 runMigrations();
 seedParents();
 seedWeeklyRules();
 seedWeekendConfig();
 seedAdmin();
+seedChildProfile();
 
 export { db, dbPath, hashPassword, verifyPassword, hashToken };
