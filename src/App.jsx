@@ -674,16 +674,6 @@ const App = () => {
             </div>
           </div>
 
-          <section className="bg-white rounded-3xl shadow-xl border border-slate-200 p-4 md:p-6">
-            <div className="rounded-2xl bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 px-4 py-4 md:px-5 md:py-5">
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400 font-black">Jovem</p>
-                <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-tight truncate">{childProfile?.displayName || 'Jovem'}</h2>
-                <p className="mt-1 text-xs md:text-sm text-slate-500 font-semibold">Perfil exibido na organizacao da guarda</p>
-              </div>
-            </div>
-          </section>
-
           {loadingCalendar ? (
             <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8 text-center text-slate-500 font-semibold">Carregando agenda...</div>
           ) : calendarError ? (
@@ -867,7 +857,10 @@ const App = () => {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="p-2 bg-slate-900 text-white rounded-xl shadow-lg"><CalendarIcon size={20} /></div>
-              <h1 className="text-base md:text-xl font-black tracking-tight leading-none truncate">Agenda Enzo</h1>
+              <div className="min-w-0">
+                <h1 className="text-base md:text-xl font-black tracking-tight leading-none truncate">Agenda Enzo</h1>
+                <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-slate-400 truncate">{childProfile?.displayName || 'Jovem'}</p>
+              </div>
               <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-sm shrink-0">
                 {childProfile?.photoUrl ? (
                   <img src={childProfile.photoUrl} alt={childProfile.displayName || 'Jovem'} className="w-full h-full object-cover" />
