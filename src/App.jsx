@@ -19,6 +19,7 @@ import {
   Star,
   Trash2,
   User,
+  X,
 } from 'lucide-react';
 import { api } from './api';
 
@@ -51,6 +52,8 @@ const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 const toSelectValue = (value) => (value === null || value === undefined ? '' : String(value));
 const parseNullableInt = (value) => (value === '' ? null : Number(value));
+const isSameDay = (left, right) => left.toDateString() === right.toDateString();
+const getFullDateLabel = (date) => `${daysOfWeek[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}`;
 
 const getNthWeekdayDate = (year, month, weekday, occurrence) => {
   let count = 0;
@@ -121,6 +124,7 @@ const setAdminIntent = (value) => {
 const App = () => {
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [modalDate, setModalDate] = useState(null);
   const [page, setPage] = useState(() => (window.location.hash === '#admin' || getStoredAdminIntent() ? 'admin' : 'calendar'));
 
   const [calendarData, setCalendarData] = useState(null);
@@ -214,6 +218,7 @@ const App = () => {
   }, []);
 
   const selectedRule = useMemo(() => getDisplayRule(selectedDate, calendarData), [selectedDate, calendarData]);
+  const modalRule = useMemo(() => (modalDate ? getDisplayRule(modalDate, calendarData) : null), [modalDate, calendarData]);
   const parentById = useMemo(() => Object.fromEntries((calendarData?.parents || []).map((parent) => [parent.id, parent])), [calendarData]);
   const parents = calendarData?.parents || [];
   const weeklyRules = calendarData?.weeklyRules || [];
@@ -375,6 +380,68 @@ const App = () => {
       setAdminState((state) => ({ ...state, error: error.message }));
     }
   };
+
+  const renderRuleDetails = (date, rule, options = {}) => {
+    const {
+      compact = false,
+      showDateHeader = false,
+      todayLabel = false,
+    } = options;
+
+    if (!rule) {
+      return <div className="text-sm font-semibold text-slate-500">Nenhum detalhe disponivel para esta data.</div>;
+    }
+
+    const dateIsToday = isSameDay(date, new Date());
+    const palette = colors[rule.highlightColor] || colors.slate;
+
+    return (
+      <>
+        {showDateHeader ? (
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Detalhes</p>
+              <p className="text-base font-black text-slate-800">{getFullDateLabel(date)}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] font-bold bg-indigo-500 text-white px-2 py-1 rounded-full shadow-sm">
+                {date.getDate()} {daysOfWeek[date.getDay()]}
+              </div>
+              {todayLabel && dateIsToday ? <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-indigo-600">Ref. a hoje</p> : null}
+            </div>
+          </div>
+        ) : null}
+        <div className={`p-3 rounded-2xl flex items-center justify-between border-2 ${palette.card}`}>
+          <div className="flex items-center gap-2">
+            <User size={18} className={(colors[parentById[rule.primaryParentId]?.colorKey] || colors.slate).icon} />
+            <span className="font-black text-xs uppercase tracking-tight">{rule.label}</span>
+          </div>
+          {rule.specialWeekend && <Star size={16} className="text-amber-500 fill-amber-500" />}
+        </div>
+        <div className={`space-y-2 ${compact ? 'max-h-72 overflow-y-auto pr-1' : ''}`}>
+          {rule.activities.map((activity) => {
+            const Icon = iconMap[activity.iconKey] || Clock;
+            return (
+              <div key={activity.id} className="flex items-start gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
+                <div className="p-2 bg-white rounded-xl text-indigo-500 shadow-sm"><Icon size={14} /></div>
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{activity.timeLabel}</p>
+                  <p className="text-xs font-bold text-slate-700 leading-tight">{activity.title}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {rule.pickupText ? (
+          <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-100 flex items-center gap-2">
+            <Info size={14} className="text-indigo-500" />
+            <p className="text-[10px] font-bold text-indigo-700">{rule.pickupText}</p>
+          </div>
+        ) : null}
+      </>
+    );
+  };
+
   const renderCalendar = () => {
     const daysInMonth = getDaysInMonth(viewDate.getFullYear(), viewDate.getMonth());
     const firstDay = getFirstDayOfMonth(viewDate.getFullYear(), viewDate.getMonth());
@@ -409,11 +476,11 @@ const App = () => {
                     const isToday = date.toDateString() === new Date().toDateString();
                     const isSelected = date.toDateString() === selectedDate.toDateString();
                     return (
-                      <button key={date.toISOString()} onClick={() => setSelectedDate(date)} className={`relative h-14 md:h-24 flex flex-col border-2 rounded-xl transition-all overflow-hidden bg-slate-50 ${isSelected ? 'border-indigo-500 shadow-lg scale-105 z-10' : 'border-slate-100'} ${isToday ? 'bg-white shadow-sm ring-1 ring-indigo-500/20' : ''}`}>
+                      <button key={date.toISOString()} onClick={() => { setSelectedDate(date); setModalDate(date); }} className={`relative h-20 md:h-28 flex flex-col border-2 rounded-xl transition-all overflow-hidden bg-slate-50 ${isSelected ? 'border-indigo-500 shadow-lg scale-105 z-10' : 'border-slate-100'} ${isToday ? 'bg-white shadow-sm ring-1 ring-indigo-500/20' : ''}`}>
                         <div className="h-1 w-full bg-slate-200" />
-                        <div className="p-1 flex-1 flex flex-col items-center justify-center">
-                          <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full shadow-md' : 'text-slate-700'}`}>{date.getDate()}</span>
-                          <span className="mt-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Sem regra</span>
+                        <div className="p-2 flex-1 flex flex-col">
+                          <span className={`text-xs md:text-sm font-black self-start ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full shadow-md' : 'text-slate-700'}`}>{date.getDate()}</span>
+                          <span className="mt-2 text-[9px] font-bold uppercase tracking-widest text-slate-400 text-left">Sem regra</span>
                         </div>
                       </button>
                     );
@@ -423,11 +490,13 @@ const App = () => {
                   const isToday = date.toDateString() === new Date().toDateString();
                   const isSelected = date.toDateString() === selectedDate.toDateString();
                   return (
-                    <button key={date.toISOString()} onClick={() => setSelectedDate(date)} className={`relative h-14 md:h-24 flex flex-col border-2 rounded-xl transition-all overflow-hidden ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-105 z-10' : 'border-transparent'} ${isToday ? 'bg-white shadow-sm ring-1 ring-indigo-500/20' : ''}`}>
+                    <button key={date.toISOString()} onClick={() => { setSelectedDate(date); setModalDate(date); }} className={`relative h-20 md:h-28 flex flex-col border-2 rounded-xl transition-all overflow-hidden ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-105 z-10' : 'border-transparent'} ${isToday ? 'bg-white shadow-sm ring-1 ring-indigo-500/20' : ''}`}>
                       <div className={`h-1 w-full ${stripe}`} />
-                      <div className="p-1 flex-1 flex flex-col items-center justify-center">
+                      <div className="p-2 flex-1 flex flex-col items-start">
                         <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full shadow-md' : 'text-slate-700'}`}>{date.getDate()}</span>
-                        <div className="flex gap-0.5 mt-1 items-center">
+                        <p className="mt-2 text-[9px] md:text-[10px] font-black uppercase tracking-tight text-slate-700 text-left leading-tight">{details.label}</p>
+                        {details.activities[0] ? <p className="mt-1 text-[9px] text-slate-500 text-left leading-tight">{details.activities[0].timeLabel} {details.activities[0].title}</p> : null}
+                        <div className="flex gap-0.5 mt-auto items-center">
                           {details.activities.length > 0 && <div className="w-1 h-1 rounded-full bg-slate-400 opacity-50" />}
                           {details.specialWeekend && <Star size={8} className="text-amber-500 fill-amber-500" />}
                         </div>
@@ -442,38 +511,31 @@ const App = () => {
           <aside className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden h-fit">
             <div className="bg-slate-50 p-4 border-b border-slate-200 flex items-center justify-between">
               <h2 className="font-black text-slate-800 text-sm flex items-center gap-2"><Clock size={16} className="text-indigo-500" /> Detalhes</h2>
-              <div className="text-[10px] font-bold bg-indigo-500 text-white px-2 py-1 rounded-full shadow-sm">{selectedDate.getDate()} {months[selectedDate.getMonth()]}</div>
+              <div className="text-[10px] font-bold bg-indigo-500 text-white px-2 py-1 rounded-full shadow-sm">{selectedDate.getDate()} {daysOfWeek[selectedDate.getDay()]}</div>
             </div>
             <div className="p-4 space-y-3">
-              {selectedRule ? (
-                <>
-                  <div className={`p-3 rounded-2xl flex items-center justify-between border-2 ${(colors[selectedRule.highlightColor] || colors.slate).card}`}>
-                    <div className="flex items-center gap-2">
-                      <User size={18} className={(colors[parentById[selectedRule.primaryParentId]?.colorKey] || colors.slate).icon} />
-                      <span className="font-black text-xs uppercase tracking-tight">{selectedRule.label}</span>
-                    </div>
-                    {selectedRule.specialWeekend && <Star size={16} className="text-amber-500 fill-amber-500" />}
-                  </div>
-                  <div className="space-y-2">
-                    {selectedRule.activities.map((activity) => {
-                      const Icon = iconMap[activity.iconKey] || Clock;
-                      return (
-                        <div key={activity.id} className="flex items-start gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
-                          <div className="p-2 bg-white rounded-xl text-indigo-500 shadow-sm"><Icon size={14} /></div>
-                          <div>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{activity.timeLabel}</p>
-                            <p className="text-xs font-bold text-slate-700 leading-tight">{activity.title}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {selectedRule.pickupText && <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-100 flex items-center gap-2"><Info size={14} className="text-indigo-500" /><p className="text-[10px] font-bold text-indigo-700">{selectedRule.pickupText}</p></div>}
-                </>
-              ) : <div className="text-sm font-semibold text-slate-500">Nenhum detalhe disponivel para esta data.</div>}
+              {renderRuleDetails(selectedDate, selectedRule, { showDateHeader: true, todayLabel: true })}
             </div>
           </aside>
         </div>
+        {modalDate ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+            <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+              <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-indigo-300">Guarda do dia</p>
+                  <p className="text-base font-black">{getFullDateLabel(modalDate)}</p>
+                </div>
+                <button type="button" onClick={() => setModalDate(null)} className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="p-4 space-y-3">
+                {renderRuleDetails(modalDate, modalRule, { compact: true })}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </>
     );
   };
