@@ -280,7 +280,9 @@ const serveUploadFile = (filename, res) => {
     '.jpeg': 'image/jpeg',
     '.png': 'image/png',
     '.webp': 'image/webp',
+    '.gif': 'image/gif',
     '.heic': 'image/heic',
+    '.heif': 'image/heif',
   };
 
   res.statusCode = 200;
@@ -561,7 +563,9 @@ export const handleRequest = async (req, res, options = {}) => {
           'image/jpg': 'jpg',
           'image/png': 'png',
           'image/webp': 'webp',
+          'image/gif': 'gif',
           'image/heic': 'heic',
+          'image/heif': 'heif',
         };
         const extension = extensionMap[contentType] || 'jpg';
         const filename = `child-profile.${extension}`;

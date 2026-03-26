@@ -154,6 +154,19 @@ const initialData = {
 const getStoredToken = () => window.localStorage.getItem(SESSION_KEY);
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
+const inferImageMimeType = (file) => {
+  const directType = String(file?.type || '').toLowerCase();
+  if (directType.startsWith('image/')) return directType;
+
+  const name = String(file?.name || '').toLowerCase();
+  if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+  if (name.endsWith('.png')) return 'image/png';
+  if (name.endsWith('.webp')) return 'image/webp';
+  if (name.endsWith('.gif')) return 'image/gif';
+  if (name.endsWith('.heic')) return 'image/heic';
+  if (name.endsWith('.heif')) return 'image/heif';
+  return '';
+};
 const fileToDataUrl = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.onload = () => resolve(String(reader.result || ''));
@@ -425,9 +438,10 @@ const request = async (url, options = {}) => {
 const requestBinary = async (url, file) => {
   const headers = {};
   const token = getStoredToken();
+  const mimeType = inferImageMimeType(file);
 
-  if (file?.type) {
-    headers['Content-Type'] = file.type;
+  if (mimeType) {
+    headers['Content-Type'] = mimeType;
   }
 
   if (token) {
@@ -474,6 +488,20 @@ const withFallback = async (remoteCall, localCall) => {
   }
 };
 
+const withAdminPersistenceFallback = async (remoteCall, localCall, unavailableMessage) => {
+  try {
+    return await remoteCall();
+  } catch (error) {
+    if (error?.code === 'API_UNAVAILABLE') {
+      if (getStoredToken() && getStoredToken() !== LOCAL_TOKEN) {
+        throw new Error(unavailableMessage);
+      }
+      return localCall();
+    }
+    throw error;
+  }
+};
+
 export const api = {
   getCalendar: () => withFallback(() => request('/api/calendar', { method: 'GET' }), () => localApi.getCalendar()),
   login: (payload) => withFallback(() => request('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) }), () => localApi.login(payload)),
@@ -489,6 +517,14 @@ export const api = {
   updateActivity: (id, payload) => withFallback(() => request(`/api/admin/activities/${id}`, { method: 'PUT', body: JSON.stringify(payload) }), () => localApi.updateActivity(id, payload)),
   deleteActivity: (id) => withFallback(() => request(`/api/admin/activities/${id}`, { method: 'DELETE' }), () => localApi.deleteActivity(id)),
   updateWeekendConfig: (payload) => withFallback(() => request('/api/admin/weekend-config', { method: 'PUT', body: JSON.stringify(payload) }), () => localApi.updateWeekendConfig(payload)),
-  updateChildProfile: (payload) => withFallback(() => request('/api/admin/child-profile', { method: 'PUT', body: JSON.stringify(payload) }), () => localApi.updateChildProfile(payload)),
-  uploadChildPhoto: (file) => withFallback(() => requestBinary('/api/admin/child-photo', file), () => localApi.uploadChildPhoto(file)),
+  updateChildProfile: (payload) => withAdminPersistenceFallback(
+    () => request('/api/admin/child-profile', { method: 'PUT', body: JSON.stringify(payload) }),
+    () => localApi.updateChildProfile(payload),
+    'Nao foi possivel salvar o perfil no servidor agora. Tente novamente em alguns instantes.',
+  ),
+  uploadChildPhoto: (file) => withAdminPersistenceFallback(
+    () => requestBinary('/api/admin/child-photo', file),
+    () => localApi.uploadChildPhoto(file),
+    'Nao foi possivel salvar a foto no servidor agora. Tente novamente em alguns instantes.',
+  ),
 };

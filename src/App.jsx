@@ -59,6 +59,19 @@ const isSameDay = (left, right) => left.toDateString() === right.toDateString();
 const getFullDateLabel = (date) => `${daysOfWeek[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}`;
 const capitalize = (value) => value.charAt(0).toUpperCase() + value.slice(1);
 const getShortDateLabel = (date) => capitalize(date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }));
+const getImageMimeType = (file) => {
+  const directType = String(file?.type || '').toLowerCase();
+  if (directType.startsWith('image/')) return directType;
+
+  const name = String(file?.name || '').toLowerCase();
+  if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+  if (name.endsWith('.png')) return 'image/png';
+  if (name.endsWith('.webp')) return 'image/webp';
+  if (name.endsWith('.gif')) return 'image/gif';
+  if (name.endsWith('.heic')) return 'image/heic';
+  if (name.endsWith('.heif')) return 'image/heif';
+  return '';
+};
 const loadImageElement = (src) => new Promise((resolve, reject) => {
   const image = new Image();
   image.onload = () => resolve(image);
@@ -75,6 +88,11 @@ const canvasToBlob = (canvas, type, quality) => new Promise((resolve, reject) =>
   }, type, quality);
 });
 const convertImageFileForUpload = async (file) => {
+  const sourceType = getImageMimeType(file);
+  if (!sourceType) {
+    throw new Error('Selecione um arquivo de imagem valido.');
+  }
+
   if (typeof document === 'undefined') return file;
 
   const source = URL.createObjectURL(file);
@@ -108,7 +126,13 @@ const convertImageFileForUpload = async (file) => {
     const fallbackBlob = await canvasToBlob(canvas, 'image/jpeg', 0.42);
     return new File([fallbackBlob], 'child-profile.jpg', { type: 'image/jpeg' });
   } catch (_error) {
-    return file;
+    if (sourceType === 'image/heic' || sourceType === 'image/heif') {
+      throw new Error('Nao foi possivel preparar a foto do celular. Tente enviar uma imagem em JPG ou PNG.');
+    }
+    if (file.type === sourceType) {
+      return file;
+    }
+    return new File([file], file.name || 'child-profile', { type: sourceType });
   } finally {
     URL.revokeObjectURL(source);
   }
@@ -466,9 +490,19 @@ const App = () => {
     event.preventDefault();
     setAdminState((state) => ({ ...state, error: '', message: '' }));
     try {
-      await api.updateChildProfile(childForm);
+      const profile = await api.updateChildProfile(childForm);
+      setChildForm({
+        displayName: profile.displayName || childForm.displayName,
+        photoUrl: profile.photoUrl || '',
+      });
+      setCalendarData((state) => (state ? ({
+        ...state,
+        childProfile: {
+          ...(state.childProfile || {}),
+          ...profile,
+        },
+      }) : state));
       setAdminState((state) => ({ ...state, message: 'Perfil do jovem atualizado.' }));
-      await refreshAll();
     } catch (error) {
       setAdminState((state) => ({ ...state, error: error.message }));
     }
@@ -479,7 +513,7 @@ const App = () => {
 
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
+    if (!getImageMimeType(file)) {
       setChildPhotoState({ loading: false, error: 'Selecione um arquivo de imagem valido.', fileName: '' });
       event.target.value = '';
       return;
@@ -499,7 +533,7 @@ const App = () => {
         },
       }) : state));
       setChildPhotoState({ loading: false, error: '', fileName: file.name });
-      setAdminState((state) => ({ ...state, error: '', message: 'Foto atualizada. Salve o perfil apenas se tambem alterou o nome.' }));
+      setAdminState((state) => ({ ...state, error: '', message: 'Foto atualizada e salva. Use Salvar perfil apenas para nome ou URL manual.' }));
     } catch (error) {
       setChildPhotoState({ loading: false, error: error.message || 'Nao foi possivel preparar a foto.', fileName: '' });
     } finally {
@@ -904,7 +938,7 @@ const App = () => {
             <div className="space-y-3">
               <input value={childForm.displayName} onChange={(event) => setChildForm((state) => ({ ...state, displayName: event.target.value }))} placeholder="Nome de exibicao" className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm font-semibold" />
               <input value={childForm.photoUrl} onChange={(event) => { setChildForm((state) => ({ ...state, photoUrl: event.target.value })); setChildPhotoState((state) => ({ ...state, error: '' })); }} placeholder="URL da foto (opcional)" className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm font-semibold" />
-              <p className="text-xs font-semibold text-slate-500">Voce pode subir uma nova foto direto do dispositivo ou manter uma URL manual.</p>
+              <p className="text-xs font-semibold text-slate-500">A foto enviada pelo dispositivo salva na hora. Use Salvar perfil para nome ou URL manual.</p>
               <button type="submit" disabled={childPhotoState.loading} className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-slate-900 text-white text-sm font-black disabled:opacity-60"><Save size={16} /> Salvar perfil</button>
             </div>
           </form>
