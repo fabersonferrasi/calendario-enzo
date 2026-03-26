@@ -22,15 +22,24 @@ const request = async (url, options = {}) => {
       headers,
     });
   } catch (_error) {
-    throw new Error('Nao foi possivel conectar ao servidor local. Inicie o projeto com "pnpm dev" para subir agenda e API juntas.');
+    throw new Error('Nao foi possivel conectar ao servidor da agenda.');
   }
 
-  const payload = await response.json().catch(() => ({}));
+  const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(payload.error || 'Nao foi possivel concluir a solicitacao.');
+    if (payload?.error) {
+      throw new Error(payload.error);
+    }
+    if (response.status === 401) {
+      throw new Error('Usuario ou senha invalidos.');
+    }
+    if (response.status === 404 || response.status >= 500) {
+      throw new Error('O painel nao conseguiu falar com a API da agenda.');
+    }
+    throw new Error('Nao foi possivel concluir a solicitacao.');
   }
 
-  return payload;
+  return payload || {};
 };
 
 export const api = {

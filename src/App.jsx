@@ -129,9 +129,9 @@ const App = () => {
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
-      });
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => registration.unregister());
+      }).catch(() => {});
     }
   }, []);
 
@@ -203,16 +203,26 @@ const App = () => {
 
   const handleLogin = async (event) => {
     event.preventDefault();
+    if (!loginForm.username.trim() || !loginForm.password) {
+      setAdminState({ loading: false, error: 'Informe usuario e senha.', message: '' });
+      return;
+    }
+
     setAdminState({ loading: true, error: '', message: '' });
     try {
       const payload = await api.login(loginForm);
       window.localStorage.setItem('agenda_enzo_token', payload.token);
+      setSession(payload.user);
+      setPage('admin');
       const ok = await loadAdminBootstrap();
       if (ok) {
         setAdminState({ loading: false, error: '', message: 'Autenticacao realizada. CRUD liberado.' });
-        setPage('admin');
+        return;
       }
+      setAdminState({ loading: false, error: 'Login autenticado, mas o painel nao conseguiu carregar os dados.', message: '' });
     } catch (error) {
+      setSession(null);
+      setPage('calendar');
       setAdminState({ loading: false, error: error.message, message: '' });
     }
   };
@@ -565,7 +575,6 @@ const App = () => {
               <div className="p-2 bg-indigo-500 rounded-xl shadow-lg shadow-indigo-500/20"><CalendarIcon size={24} /></div>
               <div>
                 <h1 className="text-xl font-black tracking-tight leading-none">Agenda Enzo</h1>
-                <p className="text-indigo-300 text-[10px] uppercase font-bold tracking-[0.3em] mt-1">Agenda + painel CRUD autenticado</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
