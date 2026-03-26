@@ -1,15 +1,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 
 const dataDir = path.resolve(process.cwd(), 'server', 'data');
 const dbPath = path.join(dataDir, 'agenda-enzo.sqlite');
 
 fs.mkdirSync(dataDir, { recursive: true });
 
-const db = new Database(dbPath);
-db.pragma('journal_mode = WAL');
+const db = new DatabaseSync(dbPath);
+db.exec('PRAGMA journal_mode = WAL;');
 
 const hashPassword = (password, salt = crypto.randomBytes(16).toString('hex')) => {
   const hash = crypto.scryptSync(password, salt, 64).toString('hex');

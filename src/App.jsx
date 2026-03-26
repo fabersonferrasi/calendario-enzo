@@ -419,14 +419,13 @@ const App = () => {
   const renderAdminLogin = () => (
     <div className="max-w-md mx-auto bg-white rounded-3xl shadow-xl border border-slate-200 p-6 space-y-4">
       <div className="p-4 rounded-2xl bg-slate-900 text-white">
-        <p className="text-sm font-black">Autenticacao do painel</p>
-        <p className="text-xs text-slate-300 mt-1">Ao autenticar, voce acessa diretamente a pagina de manipulacao CRUD.</p>
+        <p className="text-sm font-black">Entrar</p>
       </div>
       {adminState.error && <div className="p-3 rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-sm font-semibold">{adminState.error}</div>}
       <form onSubmit={handleLogin} className="space-y-3">
         <label className="block space-y-1"><span className="text-xs font-black uppercase tracking-widest text-slate-500">Usuario</span><input value={loginForm.username} onChange={(event) => setLoginForm((state) => ({ ...state, username: event.target.value }))} className="w-full border border-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500" /></label>
         <label className="block space-y-1"><span className="text-xs font-black uppercase tracking-widest text-slate-500">Senha</span><input type="password" value={loginForm.password} onChange={(event) => setLoginForm((state) => ({ ...state, password: event.target.value }))} className="w-full border border-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500" /></label>
-        <button type="submit" disabled={adminState.loading} className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 transition-colors text-white text-sm font-black disabled:opacity-60"><LogIn size={16} /> {adminState.loading ? 'Entrando...' : 'Entrar e abrir CRUD'}</button>
+        <button type="submit" disabled={adminState.loading} className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 transition-colors text-white text-sm font-black disabled:opacity-60"><LogIn size={16} /> {adminState.loading ? 'Entrando...' : 'Entrar'}</button>
       </form>
     </div>
   );
@@ -492,6 +491,30 @@ const App = () => {
             <input type="number" min="0" value={activityForm.sortOrder} onChange={(event) => setActivityForm((state) => ({ ...state, sortOrder: Number(event.target.value) }))} placeholder="Ordem" className="border border-slate-200 rounded-2xl px-3 py-2 text-sm font-semibold" />
             <button type="submit" className="md:col-span-2 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-slate-900 text-white text-sm font-black"><Save size={16} /> {editingActivityId ? 'Atualizar' : 'Criar'}</button>
           </form>
+          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+            {allActivities.map((activity) => {
+              const Icon = iconMap[activity.iconKey] || Clock;
+              return (
+                <div key={activity.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-xl shadow-sm text-indigo-500"><Icon size={14} /></div>
+                    <div>
+                      <p className="text-sm font-black">{activity.timeLabel} - {activity.title}</p>
+                      <p className="text-xs text-slate-500">{daysOfWeek[activity.weekday]} - {activity.ruleLabel}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => { setEditingActivityId(activity.id); setActivityForm({ weeklyRuleId: toSelectValue(activity.weeklyRuleId), timeLabel: activity.timeLabel, title: activity.title, iconKey: activity.iconKey, sortOrder: activity.sortOrder }); }} className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100">
+                      <Pencil size={14} />
+                    </button>
+                    <button type="button" onClick={async () => { try { await api.deleteActivity(activity.id); setAdminState((state) => ({ ...state, message: 'Compromisso removido.' })); await refreshAll(); } catch (error) { setAdminState((state) => ({ ...state, error: error.message })); } }} className="p-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </section>
 
         <section className="bg-white rounded-3xl shadow-xl border border-slate-200 p-4 space-y-3">
@@ -524,15 +547,13 @@ const App = () => {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {page === 'calendar' ? (
-                <button onClick={openAdminPage} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-colors text-sm font-bold"><Shield size={16} /> Abrir pagina CRUD</button>
+                <button onClick={openAdminPage} aria-label="Abrir admin" title="Admin" className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-colors text-sm font-bold"><Shield size={16} /></button>
               ) : (
                 <button onClick={() => setPage('calendar')} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-colors text-sm font-bold"><ArrowLeft size={16} /> Voltar para agenda</button>
               )}
               {session ? (
                 <button onClick={handleLogout} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-400/30 hover:bg-rose-500/30 transition-colors text-sm font-bold"><LogOut size={16} /> Sair</button>
-              ) : (
-                <div className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-300">Acesso inicial: admin / admin123</div>
-              )}
+              ) : null}
             </div>
           </div>
           {page === 'calendar' && (
