@@ -50,6 +50,8 @@ const iconMap = {
 
 const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+const addDays = (date, amount) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
+const getStartOfWeek = (date) => addDays(date, -date.getDay());
 const toSelectValue = (value) => (value === null || value === undefined ? '' : String(value));
 const parseNullableInt = (value) => (value === '' ? null : Number(value));
 const isSameDay = (left, right) => left.toDateString() === right.toDateString();
@@ -125,6 +127,7 @@ const App = () => {
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [modalDate, setModalDate] = useState(null);
+  const [calendarView, setCalendarView] = useState('day');
   const [page, setPage] = useState(() => (window.location.hash === '#admin' || getStoredAdminIntent() ? 'admin' : 'calendar'));
 
   const [calendarData, setCalendarData] = useState(null);
@@ -217,6 +220,7 @@ const App = () => {
     return () => window.removeEventListener('hashchange', syncPageFromHash);
   }, []);
 
+  const selectedRule = useMemo(() => getDisplayRule(selectedDate, calendarData), [selectedDate, calendarData]);
   const modalRule = useMemo(() => (modalDate ? getDisplayRule(modalDate, calendarData) : null), [modalDate, calendarData]);
   const parentById = useMemo(() => Object.fromEntries((calendarData?.parents || []).map((parent) => [parent.id, parent])), [calendarData]);
   const parents = calendarData?.parents || [];
@@ -442,101 +446,187 @@ const App = () => {
   };
 
   const renderCalendar = () => {
-    const daysInMonth = getDaysInMonth(viewDate.getFullYear(), viewDate.getMonth());
-    const firstDay = getFirstDayOfMonth(viewDate.getFullYear(), viewDate.getMonth());
-    const emptyCells = Array.from({ length: firstDay }, (_, index) => <div key={`empty-${index}`} className="h-14 md:h-24 bg-gray-50/20 rounded-lg" />);
     const hasWeeklyRules = (calendarData?.weeklyRules || []).length > 0;
+
+    const periodLabel = (() => {
+      if (calendarView === 'day') {
+        return `${daysOfWeek[selectedDate.getDay()]} ${selectedDate.getDate()} ${months[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+      }
+      if (calendarView === 'week') {
+        const start = getStartOfWeek(selectedDate);
+        const end = addDays(start, 6);
+        if (start.getMonth() === end.getMonth()) {
+          return `${start.getDate()} - ${end.getDate()} ${months[start.getMonth()]} ${start.getFullYear()}`;
+        }
+        return `${start.getDate()} ${months[start.getMonth()]} - ${end.getDate()} ${months[end.getMonth()]}`;
+      }
+      return `${months[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+    })();
+
+    const moveRange = (direction) => {
+      if (calendarView === 'day') {
+        const nextDate = addDays(selectedDate, direction);
+        setSelectedDate(nextDate);
+        setViewDate(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
+        return;
+      }
+
+      if (calendarView === 'week') {
+        const nextDate = addDays(selectedDate, direction * 7);
+        setSelectedDate(nextDate);
+        setViewDate(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
+        return;
+      }
+
+      const nextViewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + direction, 1);
+      const nextDay = Math.min(selectedDate.getDate(), getDaysInMonth(nextViewDate.getFullYear(), nextViewDate.getMonth()));
+      const nextSelectedDate = new Date(nextViewDate.getFullYear(), nextViewDate.getMonth(), nextDay);
+      setViewDate(nextViewDate);
+      setSelectedDate(nextSelectedDate);
+    };
+
+    const renderMonthCard = (date) => {
+      const details = getDisplayRule(date, calendarData);
+      const isToday = isSameDay(date, new Date());
+      const isSelected = isSameDay(date, selectedDate);
+      const palette = details ? (colors[details.highlightColor] || colors.slate) : colors.slate;
+      const stripe = details ? (stripeMap[details.stripeMode] || palette.stripe) : 'bg-slate-300';
+
+      return (
+        <button
+          key={date.toISOString()}
+          onClick={() => { setSelectedDate(date); setModalDate(date); }}
+          className={`relative h-24 md:h-28 lg:h-32 flex flex-col border-2 rounded-2xl transition-all overflow-hidden text-left ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-transparent'} ${isToday ? 'ring-2 ring-indigo-500/25' : ''}`}
+        >
+          <div className={`h-1.5 w-full ${stripe}`} />
+          <div className="p-2 md:p-3 flex-1 flex flex-col">
+            <div className="flex items-center justify-between gap-2">
+              <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-7 h-7 rounded-full inline-flex items-center justify-center' : 'text-slate-700'}`}>{date.getDate()}</span>
+              {details?.specialWeekend ? <Star size={12} className="text-amber-500 fill-amber-500" /> : null}
+            </div>
+            <div className="mt-2 space-y-1">
+              <p className="text-[10px] md:text-xs font-black text-slate-700 leading-tight line-clamp-2">{details?.label || 'Sem regra'}</p>
+              {details?.activities?.[0] ? <p className="text-[9px] md:text-[10px] text-slate-500 leading-tight line-clamp-2">{details.activities[0].timeLabel} {details.activities[0].title}</p> : null}
+            </div>
+          </div>
+        </button>
+      );
+    };
+
+    const renderSelectedPanel = () => (
+      <aside className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden h-fit">
+        <div className="bg-slate-50 p-4 border-b border-slate-200 flex items-center justify-between">
+          <h2 className="font-black text-slate-800 text-sm flex items-center gap-2"><Clock size={16} className="text-indigo-500" /> Detalhes</h2>
+          <div className="text-[10px] font-bold bg-indigo-500 text-white px-2 py-1 rounded-full shadow-sm">{selectedDate.getDate()} {daysOfWeek[selectedDate.getDay()]}</div>
+        </div>
+        <div className="p-4 space-y-3">
+          {renderRuleDetails(selectedDate, selectedRule, { showDateHeader: true, todayLabel: true })}
+          <button type="button" onClick={() => setModalDate(selectedDate)} className="w-full inline-flex items-center justify-center px-4 py-2 rounded-2xl bg-slate-900 text-white text-sm font-black">Abrir popup</button>
+        </div>
+      </aside>
+    );
+
+    const renderDayView = () => (
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <section className="lg:col-span-3 bg-gradient-to-br from-slate-900 to-indigo-900 text-white rounded-3xl p-4 md:p-6 shadow-xl">
+          <div className="flex items-center justify-between gap-3">
+            <button type="button" onClick={() => moveRange(-1)} className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20"><ChevronLeft size={18} /></button>
+            <div className="text-center">
+              <p className="text-[10px] uppercase tracking-[0.25em] text-indigo-200 font-black">Visao do dia</p>
+              <p className="text-lg md:text-xl font-black">{getFullDateLabel(selectedDate)}</p>
+              {isSameDay(selectedDate, new Date()) ? <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-200 font-black">Hoje</p> : null}
+            </div>
+            <button type="button" onClick={() => moveRange(1)} className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20"><ChevronRight size={18} /></button>
+          </div>
+          <div className="mt-4 bg-white/10 border border-white/20 rounded-2xl p-4 space-y-3">
+            {renderRuleDetails(selectedDate, selectedRule)}
+          </div>
+        </section>
+        <section className="lg:col-span-2">
+          {renderSelectedPanel()}
+        </section>
+      </div>
+    );
+
+    const renderWeekView = () => {
+      const start = getStartOfWeek(selectedDate);
+      const weekDates = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <section className="lg:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-3 md:p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-2">
+              {weekDates.map((date) => renderMonthCard(date))}
+            </div>
+          </section>
+          {renderSelectedPanel()}
+        </div>
+      );
+    };
+
+    const renderMonthView = () => {
+      const daysInMonth = getDaysInMonth(viewDate.getFullYear(), viewDate.getMonth());
+      const firstDay = getFirstDayOfMonth(viewDate.getFullYear(), viewDate.getMonth());
+      const emptyCells = Array.from({ length: firstDay }, (_, index) => <div key={`empty-${index}`} className="h-24 md:h-28 lg:h-32 bg-slate-50 rounded-2xl border border-slate-100" />);
+      const dates = Array.from({ length: daysInMonth }, (_, index) => new Date(viewDate.getFullYear(), viewDate.getMonth(), index + 1));
+
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <section className="lg:col-span-3 bg-white rounded-3xl shadow-xl border border-slate-200 p-3 md:p-4">
+            <div className="grid grid-cols-7 gap-2 md:gap-3">
+              {daysOfWeek.map((day) => <div key={day} className="text-center font-black text-slate-400 py-2 uppercase text-[9px] tracking-widest">{day}</div>)}
+              {emptyCells}
+              {dates.map((date) => renderMonthCard(date))}
+            </div>
+          </section>
+          <section className="lg:col-span-2">
+            {renderSelectedPanel()}
+          </section>
+        </div>
+      );
+    };
 
     return (
       <>
         {calendarError && <div className="mx-2 md:mx-0 p-4 rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-sm font-semibold">{calendarError}</div>}
-        <div className="px-2 md:px-0">
-          <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-2 md:p-4">
-            {loadingCalendar ? (
-              <div className="p-8 text-center text-slate-500 font-semibold">Carregando agenda...</div>
-            ) : calendarError ? (
-              <div className="p-8 text-center space-y-3">
-                <p className="text-sm font-bold text-slate-700">A agenda nao conseguiu carregar os dados do servidor.</p>
-                <button onClick={loadCalendar} className="inline-flex items-center justify-center px-4 py-2 rounded-2xl bg-slate-900 text-white text-sm font-black">Tentar novamente</button>
+        <div className="px-2 md:px-0 space-y-4">
+          <div className="bg-slate-900 text-white rounded-3xl shadow-xl p-3 md:p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="inline-flex bg-slate-800 p-1 rounded-2xl border border-slate-700">
+              <button onClick={() => setCalendarView('day')} className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${calendarView === 'day' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:text-white'}`}>Dia</button>
+              <button onClick={() => setCalendarView('week')} className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${calendarView === 'week' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:text-white'}`}>Semana</button>
+              <button onClick={() => setCalendarView('month')} className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${calendarView === 'month' ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:text-white'}`}>Mes</button>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <button onClick={() => moveRange(-1)} className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700"><ChevronLeft size={18} /></button>
+              <div className="text-center px-3">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-indigo-200 font-black">Periodo</p>
+                <p className="text-sm md:text-base font-black">{periodLabel}</p>
               </div>
-            ) : !hasWeeklyRules ? (
-              <div className="p-8 text-center space-y-3">
-                <p className="text-sm font-bold text-slate-700">Nenhuma regra semanal foi encontrada no banco de dados.</p>
-                <p className="text-xs text-slate-500">Entre no painel para cadastrar ou ajustar os dados da agenda.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-7 gap-2 md:gap-3">
-                {daysOfWeek.map((day) => <div key={day} className="text-center font-black text-slate-400 py-2 uppercase text-[9px] tracking-widest">{day}</div>)}
-                {emptyCells}
-                {Array.from({ length: daysInMonth }, (_, index) => {
-                  const date = new Date(viewDate.getFullYear(), viewDate.getMonth(), index + 1);
-                  const details = getDisplayRule(date, calendarData);
-                  if (!details) {
-                    const isToday = date.toDateString() === new Date().toDateString();
-                    const isSelected = date.toDateString() === selectedDate.toDateString();
-                    return (
-                      <button key={date.toISOString()} onClick={() => { setSelectedDate(date); setModalDate(date); }} className={`relative h-24 md:h-32 flex flex-col border-2 rounded-2xl transition-all overflow-hidden bg-slate-50 ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-slate-100'} ${isToday ? 'bg-white shadow-sm ring-2 ring-indigo-500/20' : ''}`}>
-                        <div className="h-1 w-full bg-slate-200" />
-                        <div className="p-2 md:p-3 flex-1 flex flex-col items-start">
-                          <div className="w-full flex items-center justify-between gap-2">
-                            <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-7 h-7 flex items-center justify-center rounded-full shadow-md' : 'text-slate-700'}`}>{date.getDate()}</span>
-                            {isToday ? <span className="text-[9px] font-black uppercase tracking-widest text-indigo-600">Hoje</span> : null}
-                          </div>
-                          <div className="mt-auto text-left">
-                            <p className="text-[10px] md:text-xs font-black uppercase tracking-wide text-slate-400">Sem regra</p>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  }
-                  const palette = colors[details.highlightColor] || colors.slate;
-                  const stripe = stripeMap[details.stripeMode] || palette.stripe;
-                  const isToday = date.toDateString() === new Date().toDateString();
-                  const isSelected = date.toDateString() === selectedDate.toDateString();
-                  const activityCount = details.activities.length;
-                  const firstActivity = details.activities[0];
-                  return (
-                    <button key={date.toISOString()} onClick={() => { setSelectedDate(date); setModalDate(date); }} className={`relative h-24 md:h-32 flex flex-col border-2 rounded-2xl transition-all overflow-hidden ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-transparent'} ${isToday ? 'bg-white shadow-sm ring-2 ring-indigo-500/20' : ''}`}>
-                      <div className={`h-1 w-full ${stripe}`} />
-                      <div className="p-2 md:p-3 flex-1 flex flex-col items-start">
-                        <div className="w-full flex items-center justify-between gap-2">
-                          <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-7 h-7 flex items-center justify-center rounded-full shadow-md' : 'text-slate-700'}`}>{date.getDate()}</span>
-                          <div className="flex items-center gap-1">
-                            {isToday ? <span className="text-[9px] font-black uppercase tracking-widest text-indigo-600">Hoje</span> : null}
-                            {details.specialWeekend && <Star size={10} className="text-amber-500 fill-amber-500" />}
-                          </div>
-                        </div>
-                        <div className="mt-2 w-full space-y-2">
-                          <div className="inline-flex max-w-full items-center rounded-full bg-white/80 px-2 py-1 text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-700">
-                            <span className="truncate">{details.label}</span>
-                          </div>
-                          {firstActivity ? (
-                            <div className="rounded-2xl bg-white/70 px-2 py-2 text-left">
-                              <p className="text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">{firstActivity.timeLabel}</p>
-                              <p className="text-[10px] md:text-xs font-bold text-slate-700 leading-tight">{firstActivity.title}</p>
-                            </div>
-                          ) : (
-                            <div className="rounded-2xl bg-white/60 px-2 py-2 text-left">
-                              <p className="text-[10px] md:text-xs font-bold text-slate-500 leading-tight">Sem compromisso fixo</p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="mt-auto flex items-center justify-between w-full pt-2">
-                          <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-500">{daysOfWeek[date.getDay()]}</span>
-                          <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-500">{activityCount} item{activityCount === 1 ? '' : 's'}</span>
-                        </div>
-                        <div className="flex gap-0.5 mt-1 items-center">
-                          {details.activities.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-slate-400 opacity-60" />}
-                          {details.specialWeekend && <Star size={8} className="text-amber-500 fill-amber-500" />}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+              <button onClick={() => moveRange(1)} className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700"><ChevronRight size={18} /></button>
+            </div>
           </div>
+
+          {loadingCalendar ? (
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8 text-center text-slate-500 font-semibold">Carregando agenda...</div>
+          ) : calendarError ? (
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8 text-center space-y-3">
+              <p className="text-sm font-bold text-slate-700">A agenda nao conseguiu carregar os dados do servidor.</p>
+              <button onClick={loadCalendar} className="inline-flex items-center justify-center px-4 py-2 rounded-2xl bg-slate-900 text-white text-sm font-black">Tentar novamente</button>
+            </div>
+          ) : !hasWeeklyRules ? (
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8 text-center space-y-3">
+              <p className="text-sm font-bold text-slate-700">Nenhuma regra semanal foi encontrada no banco de dados.</p>
+              <p className="text-xs text-slate-500">Entre no painel para cadastrar ou ajustar os dados da agenda.</p>
+            </div>
+          ) : (
+            <>
+              {calendarView === 'day' ? renderDayView() : null}
+              {calendarView === 'week' ? renderWeekView() : null}
+              {calendarView === 'month' ? renderMonthView() : null}
+            </>
+          )}
         </div>
+
         {modalDate ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
             <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
@@ -698,13 +788,6 @@ const App = () => {
               ) : null}
             </div>
           </div>
-          {page === 'calendar' && (
-            <nav className="flex items-center justify-between bg-slate-800 p-1 rounded-xl border border-slate-700 shadow-inner">
-              <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} className="p-2 hover:bg-slate-700 rounded-lg transition-all active:scale-90"><ChevronLeft size={20} /></button>
-              <div className="px-4 text-center font-bold text-xs uppercase min-w-[140px]">{months[viewDate.getMonth()]} <span className="opacity-50">{viewDate.getFullYear()}</span></div>
-              <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))} className="p-2 hover:bg-slate-700 rounded-lg transition-all active:scale-90"><ChevronRight size={20} /></button>
-            </nav>
-          )}
         </header>
 
         {page === 'calendar' ? renderCalendar() : (session ? renderAdminCrud() : renderAdminLogin())}
