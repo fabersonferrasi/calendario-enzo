@@ -15,10 +15,15 @@ const request = async (url, options = {}) => {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (_error) {
+    throw new Error('Nao foi possivel conectar ao servidor local. Inicie o projeto com "pnpm dev" para subir agenda e API juntas.');
+  }
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {

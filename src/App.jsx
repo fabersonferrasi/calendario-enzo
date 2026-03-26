@@ -116,7 +116,7 @@ const App = () => {
   const [calendarError, setCalendarError] = useState('');
 
   const [session, setSession] = useState(null);
-  const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' });
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [adminState, setAdminState] = useState({ loading: false, error: '', message: '' });
 
   const [parentForm, setParentForm] = useState(emptyParentForm);
@@ -340,6 +340,7 @@ const App = () => {
     const daysInMonth = getDaysInMonth(viewDate.getFullYear(), viewDate.getMonth());
     const firstDay = getFirstDayOfMonth(viewDate.getFullYear(), viewDate.getMonth());
     const emptyCells = Array.from({ length: firstDay }, (_, index) => <div key={`empty-${index}`} className="h-14 md:h-24 bg-gray-50/20 rounded-lg" />);
+    const hasWeeklyRules = (calendarData?.weeklyRules || []).length > 0;
 
     return (
       <>
@@ -348,6 +349,16 @@ const App = () => {
           <div className="lg:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-2 md:p-4">
             {loadingCalendar ? (
               <div className="p-8 text-center text-slate-500 font-semibold">Carregando agenda...</div>
+            ) : calendarError ? (
+              <div className="p-8 text-center space-y-3">
+                <p className="text-sm font-bold text-slate-700">A agenda nao conseguiu carregar os dados do servidor.</p>
+                <button onClick={loadCalendar} className="inline-flex items-center justify-center px-4 py-2 rounded-2xl bg-slate-900 text-white text-sm font-black">Tentar novamente</button>
+              </div>
+            ) : !hasWeeklyRules ? (
+              <div className="p-8 text-center space-y-3">
+                <p className="text-sm font-bold text-slate-700">Nenhuma regra semanal foi encontrada no banco de dados.</p>
+                <p className="text-xs text-slate-500">Entre no painel para cadastrar ou ajustar os dados da agenda.</p>
+              </div>
             ) : (
               <div className="grid grid-cols-7 gap-1 md:gap-2">
                 {daysOfWeek.map((day) => <div key={day} className="text-center font-black text-slate-400 py-2 uppercase text-[9px] tracking-widest">{day}</div>)}
@@ -355,7 +366,19 @@ const App = () => {
                 {Array.from({ length: daysInMonth }, (_, index) => {
                   const date = new Date(viewDate.getFullYear(), viewDate.getMonth(), index + 1);
                   const details = getDisplayRule(date, calendarData);
-                  if (!details) return null;
+                  if (!details) {
+                    const isToday = date.toDateString() === new Date().toDateString();
+                    const isSelected = date.toDateString() === selectedDate.toDateString();
+                    return (
+                      <button key={date.toISOString()} onClick={() => setSelectedDate(date)} className={`relative h-14 md:h-24 flex flex-col border-2 rounded-xl transition-all overflow-hidden bg-slate-50 ${isSelected ? 'border-indigo-500 shadow-lg scale-105 z-10' : 'border-slate-100'} ${isToday ? 'bg-white shadow-sm ring-1 ring-indigo-500/20' : ''}`}>
+                        <div className="h-1 w-full bg-slate-200" />
+                        <div className="p-1 flex-1 flex flex-col items-center justify-center">
+                          <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full shadow-md' : 'text-slate-700'}`}>{date.getDate()}</span>
+                          <span className="mt-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Sem regra</span>
+                        </div>
+                      </button>
+                    );
+                  }
                   const palette = colors[details.highlightColor] || colors.slate;
                   const stripe = stripeMap[details.stripeMode] || palette.stripe;
                   const isToday = date.toDateString() === new Date().toDateString();

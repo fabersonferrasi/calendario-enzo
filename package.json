@@ -4,10 +4,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:all": "concurrently \"vite\" \"node server/index.js\"",
+    "dev": "concurrently \"vite\" \"node server/index.js\"",
+    "dev:web": "vite",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "node server/index.js",
+    "preview:web": "vite preview",
     "server": "node server/index.js"
   },
   "dependencies": {
