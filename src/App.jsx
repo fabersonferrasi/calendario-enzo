@@ -217,7 +217,6 @@ const App = () => {
     return () => window.removeEventListener('hashchange', syncPageFromHash);
   }, []);
 
-  const selectedRule = useMemo(() => getDisplayRule(selectedDate, calendarData), [selectedDate, calendarData]);
   const modalRule = useMemo(() => (modalDate ? getDisplayRule(modalDate, calendarData) : null), [modalDate, calendarData]);
   const parentById = useMemo(() => Object.fromEntries((calendarData?.parents || []).map((parent) => [parent.id, parent])), [calendarData]);
   const parents = calendarData?.parents || [];
@@ -451,8 +450,8 @@ const App = () => {
     return (
       <>
         {calendarError && <div className="mx-2 md:mx-0 p-4 rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-sm font-semibold">{calendarError}</div>}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 px-2 md:px-0">
-          <div className="lg:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-2 md:p-4">
+        <div className="px-2 md:px-0">
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-2 md:p-4">
             {loadingCalendar ? (
               <div className="p-8 text-center text-slate-500 font-semibold">Carregando agenda...</div>
             ) : calendarError ? (
@@ -466,7 +465,7 @@ const App = () => {
                 <p className="text-xs text-slate-500">Entre no painel para cadastrar ou ajustar os dados da agenda.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-7 gap-1 md:gap-2">
+              <div className="grid grid-cols-7 gap-2 md:gap-3">
                 {daysOfWeek.map((day) => <div key={day} className="text-center font-black text-slate-400 py-2 uppercase text-[9px] tracking-widest">{day}</div>)}
                 {emptyCells}
                 {Array.from({ length: daysInMonth }, (_, index) => {
@@ -476,11 +475,16 @@ const App = () => {
                     const isToday = date.toDateString() === new Date().toDateString();
                     const isSelected = date.toDateString() === selectedDate.toDateString();
                     return (
-                      <button key={date.toISOString()} onClick={() => { setSelectedDate(date); setModalDate(date); }} className={`relative h-20 md:h-28 flex flex-col border-2 rounded-xl transition-all overflow-hidden bg-slate-50 ${isSelected ? 'border-indigo-500 shadow-lg scale-105 z-10' : 'border-slate-100'} ${isToday ? 'bg-white shadow-sm ring-1 ring-indigo-500/20' : ''}`}>
+                      <button key={date.toISOString()} onClick={() => { setSelectedDate(date); setModalDate(date); }} className={`relative h-24 md:h-32 flex flex-col border-2 rounded-2xl transition-all overflow-hidden bg-slate-50 ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-slate-100'} ${isToday ? 'bg-white shadow-sm ring-2 ring-indigo-500/20' : ''}`}>
                         <div className="h-1 w-full bg-slate-200" />
-                        <div className="p-2 flex-1 flex flex-col">
-                          <span className={`text-xs md:text-sm font-black self-start ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full shadow-md' : 'text-slate-700'}`}>{date.getDate()}</span>
-                          <span className="mt-2 text-[9px] font-bold uppercase tracking-widest text-slate-400 text-left">Sem regra</span>
+                        <div className="p-2 md:p-3 flex-1 flex flex-col items-start">
+                          <div className="w-full flex items-center justify-between gap-2">
+                            <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-7 h-7 flex items-center justify-center rounded-full shadow-md' : 'text-slate-700'}`}>{date.getDate()}</span>
+                            {isToday ? <span className="text-[9px] font-black uppercase tracking-widest text-indigo-600">Hoje</span> : null}
+                          </div>
+                          <div className="mt-auto text-left">
+                            <p className="text-[10px] md:text-xs font-black uppercase tracking-wide text-slate-400">Sem regra</p>
+                          </div>
                         </div>
                       </button>
                     );
@@ -489,15 +493,40 @@ const App = () => {
                   const stripe = stripeMap[details.stripeMode] || palette.stripe;
                   const isToday = date.toDateString() === new Date().toDateString();
                   const isSelected = date.toDateString() === selectedDate.toDateString();
+                  const activityCount = details.activities.length;
+                  const firstActivity = details.activities[0];
                   return (
-                    <button key={date.toISOString()} onClick={() => { setSelectedDate(date); setModalDate(date); }} className={`relative h-20 md:h-28 flex flex-col border-2 rounded-xl transition-all overflow-hidden ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-105 z-10' : 'border-transparent'} ${isToday ? 'bg-white shadow-sm ring-1 ring-indigo-500/20' : ''}`}>
+                    <button key={date.toISOString()} onClick={() => { setSelectedDate(date); setModalDate(date); }} className={`relative h-24 md:h-32 flex flex-col border-2 rounded-2xl transition-all overflow-hidden ${palette.card} ${isSelected ? 'border-indigo-500 shadow-lg scale-[1.02] z-10' : 'border-transparent'} ${isToday ? 'bg-white shadow-sm ring-2 ring-indigo-500/20' : ''}`}>
                       <div className={`h-1 w-full ${stripe}`} />
-                      <div className="p-2 flex-1 flex flex-col items-start">
-                        <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full shadow-md' : 'text-slate-700'}`}>{date.getDate()}</span>
-                        <p className="mt-2 text-[9px] md:text-[10px] font-black uppercase tracking-tight text-slate-700 text-left leading-tight">{details.label}</p>
-                        {details.activities[0] ? <p className="mt-1 text-[9px] text-slate-500 text-left leading-tight">{details.activities[0].timeLabel} {details.activities[0].title}</p> : null}
-                        <div className="flex gap-0.5 mt-auto items-center">
-                          {details.activities.length > 0 && <div className="w-1 h-1 rounded-full bg-slate-400 opacity-50" />}
+                      <div className="p-2 md:p-3 flex-1 flex flex-col items-start">
+                        <div className="w-full flex items-center justify-between gap-2">
+                          <span className={`text-xs md:text-sm font-black ${isToday ? 'bg-indigo-600 text-white w-7 h-7 flex items-center justify-center rounded-full shadow-md' : 'text-slate-700'}`}>{date.getDate()}</span>
+                          <div className="flex items-center gap-1">
+                            {isToday ? <span className="text-[9px] font-black uppercase tracking-widest text-indigo-600">Hoje</span> : null}
+                            {details.specialWeekend && <Star size={10} className="text-amber-500 fill-amber-500" />}
+                          </div>
+                        </div>
+                        <div className="mt-2 w-full space-y-2">
+                          <div className="inline-flex max-w-full items-center rounded-full bg-white/80 px-2 py-1 text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-700">
+                            <span className="truncate">{details.label}</span>
+                          </div>
+                          {firstActivity ? (
+                            <div className="rounded-2xl bg-white/70 px-2 py-2 text-left">
+                              <p className="text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-400">{firstActivity.timeLabel}</p>
+                              <p className="text-[10px] md:text-xs font-bold text-slate-700 leading-tight">{firstActivity.title}</p>
+                            </div>
+                          ) : (
+                            <div className="rounded-2xl bg-white/60 px-2 py-2 text-left">
+                              <p className="text-[10px] md:text-xs font-bold text-slate-500 leading-tight">Sem compromisso fixo</p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-auto flex items-center justify-between w-full pt-2">
+                          <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-500">{daysOfWeek[date.getDay()]}</span>
+                          <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wide text-slate-500">{activityCount} item{activityCount === 1 ? '' : 's'}</span>
+                        </div>
+                        <div className="flex gap-0.5 mt-1 items-center">
+                          {details.activities.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-slate-400 opacity-60" />}
                           {details.specialWeekend && <Star size={8} className="text-amber-500 fill-amber-500" />}
                         </div>
                       </div>
@@ -507,16 +536,6 @@ const App = () => {
               </div>
             )}
           </div>
-
-          <aside className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden h-fit">
-            <div className="bg-slate-50 p-4 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="font-black text-slate-800 text-sm flex items-center gap-2"><Clock size={16} className="text-indigo-500" /> Detalhes</h2>
-              <div className="text-[10px] font-bold bg-indigo-500 text-white px-2 py-1 rounded-full shadow-sm">{selectedDate.getDate()} {daysOfWeek[selectedDate.getDay()]}</div>
-            </div>
-            <div className="p-4 space-y-3">
-              {renderRuleDetails(selectedDate, selectedRule, { showDateHeader: true, todayLabel: true })}
-            </div>
-          </aside>
         </div>
         {modalDate ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
