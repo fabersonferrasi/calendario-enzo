@@ -297,9 +297,33 @@ const seedChildProfile = () => {
   }
 
   db.prepare(`
-    INSERT INTO child_profile (id, display_name, photo_url)
-    VALUES (1, ?, ?)
-  `).run('Enzo', 'https://images.unsplash.com/photo-1503919545889-aef636e10ad4?auto=format&fit=crop&w=400&q=80');
+    INSERT INTO child_profile (id, display_name)
+    VALUES (1, ?)
+  `).run('Enzo');
+};
+
+const retireChildPhotoData = () => {
+  db.prepare(`
+    UPDATE child_profile
+    SET photo_url = ''
+    WHERE photo_url <> ''
+  `).run();
+
+  const uploadsDir = path.join(dataDir, 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    return;
+  }
+
+  for (const entry of fs.readdirSync(uploadsDir)) {
+    if (!entry.startsWith('child-profile.')) {
+      continue;
+    }
+
+    const entryPath = path.join(uploadsDir, entry);
+    if (fs.statSync(entryPath).isFile()) {
+      fs.unlinkSync(entryPath);
+    }
+  }
 };
 
 runMigrations();
@@ -308,5 +332,6 @@ seedWeeklyRules();
 seedWeekendConfig();
 seedAdmin();
 seedChildProfile();
+retireChildPhotoData();
 
 export { db, dbPath, hashPassword, verifyPassword, hashToken };

@@ -59,84 +59,6 @@ const isSameDay = (left, right) => left.toDateString() === right.toDateString();
 const getFullDateLabel = (date) => `${daysOfWeek[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}`;
 const capitalize = (value) => value.charAt(0).toUpperCase() + value.slice(1);
 const getShortDateLabel = (date) => capitalize(date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }));
-const getImageMimeType = (file) => {
-  const directType = String(file?.type || '').toLowerCase();
-  if (directType.startsWith('image/')) return directType;
-
-  const name = String(file?.name || '').toLowerCase();
-  if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
-  if (name.endsWith('.png')) return 'image/png';
-  if (name.endsWith('.webp')) return 'image/webp';
-  if (name.endsWith('.gif')) return 'image/gif';
-  if (name.endsWith('.heic')) return 'image/heic';
-  if (name.endsWith('.heif')) return 'image/heif';
-  return '';
-};
-const loadImageElement = (src) => new Promise((resolve, reject) => {
-  const image = new Image();
-  image.onload = () => resolve(image);
-  image.onerror = () => reject(new Error('Nao foi possivel processar a imagem.'));
-  image.src = src;
-});
-const canvasToBlob = (canvas, type, quality) => new Promise((resolve, reject) => {
-  canvas.toBlob((blob) => {
-    if (blob) {
-      resolve(blob);
-      return;
-    }
-    reject(new Error('Nao foi possivel gerar a imagem.'));
-  }, type, quality);
-});
-const convertImageFileForUpload = async (file) => {
-  const sourceType = getImageMimeType(file);
-  if (!sourceType) {
-    throw new Error('Selecione um arquivo de imagem valido.');
-  }
-
-  if (typeof document === 'undefined') return file;
-
-  const source = URL.createObjectURL(file);
-
-  try {
-    const image = await loadImageElement(source);
-    const maxDimension = 320;
-    const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
-    const width = Math.max(1, Math.round(image.width * scale));
-    const height = Math.max(1, Math.round(image.height * scale));
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-
-    if (!context) return file;
-
-    canvas.width = width;
-    canvas.height = height;
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, width, height);
-    context.drawImage(image, 0, 0, width, height);
-    const qualities = [0.82, 0.72, 0.64, 0.56, 0.48];
-    const maxBlobSize = 150 * 1024;
-
-    for (const quality of qualities) {
-      const blob = await canvasToBlob(canvas, 'image/jpeg', quality);
-      if (blob.size <= maxBlobSize) {
-        return new File([blob], 'child-profile.jpg', { type: 'image/jpeg' });
-      }
-    }
-
-    const fallbackBlob = await canvasToBlob(canvas, 'image/jpeg', 0.42);
-    return new File([fallbackBlob], 'child-profile.jpg', { type: 'image/jpeg' });
-  } catch (_error) {
-    if (sourceType === 'image/heic' || sourceType === 'image/heif') {
-      throw new Error('Nao foi possivel preparar a foto do celular. Tente enviar uma imagem em JPG ou PNG.');
-    }
-    if (file.type === sourceType) {
-      return file;
-    }
-    return new File([file], file.name || 'child-profile', { type: sourceType });
-  } finally {
-    URL.revokeObjectURL(source);
-  }
-};
 
 const getNthWeekdayDate = (year, month, weekday, occurrence) => {
   let count = 0;
@@ -227,8 +149,7 @@ const App = () => {
   const [activityForm, setActivityForm] = useState(emptyActivityForm);
   const [editingActivityId, setEditingActivityId] = useState(null);
   const [weekendForm, setWeekendForm] = useState({ occurrence: 2, startWeekday: 5, durationDays: 3, parentId: '', label: '', pickupText: '', highlightColor: 'rose' });
-  const [childForm, setChildForm] = useState({ displayName: '', photoUrl: '' });
-  const [childPhotoState, setChildPhotoState] = useState({ loading: false, error: '', fileName: '' });
+  const [childForm, setChildForm] = useState({ displayName: '' });
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -255,9 +176,7 @@ const App = () => {
     if (!payload?.childProfile) return;
     setChildForm({
       displayName: payload.childProfile.displayName || '',
-      photoUrl: payload.childProfile.photoUrl || '',
     });
-    setChildPhotoState({ loading: false, error: '', fileName: '' });
   };
 
   const loadCalendar = async () => {
@@ -509,7 +428,6 @@ const App = () => {
       const profile = await api.updateChildProfile(childForm);
       setChildForm({
         displayName: profile.displayName || childForm.displayName,
-        photoUrl: profile.photoUrl || '',
       });
       setCalendarData((state) => (state ? ({
         ...state,
@@ -521,39 +439,6 @@ const App = () => {
       setAdminState((state) => ({ ...state, message: 'Perfil do jovem atualizado.' }));
     } catch (error) {
       setAdminState((state) => ({ ...state, error: error.message }));
-    }
-  };
-
-  const handleChildPhotoUpload = async (event) => {
-    const file = event.target.files?.[0];
-
-    if (!file) return;
-
-    if (!getImageMimeType(file)) {
-      setChildPhotoState({ loading: false, error: 'Selecione um arquivo de imagem valido.', fileName: '' });
-      event.target.value = '';
-      return;
-    }
-
-    setChildPhotoState({ loading: true, error: '', fileName: file.name });
-
-    try {
-      const uploadFile = await convertImageFileForUpload(file);
-      const profile = await api.uploadChildPhoto(uploadFile);
-      setChildForm((state) => ({ ...state, photoUrl: profile.photoUrl || '' }));
-      setCalendarData((state) => (state ? ({
-        ...state,
-        childProfile: {
-          ...(state.childProfile || {}),
-          photoUrl: profile.photoUrl || '',
-        },
-      }) : state));
-      setChildPhotoState({ loading: false, error: '', fileName: file.name });
-      setAdminState((state) => ({ ...state, error: '', message: 'Foto atualizada e salva. Use Salvar perfil apenas para nome ou URL manual.' }));
-    } catch (error) {
-      setChildPhotoState({ loading: false, error: error.message || 'Nao foi possivel preparar a foto.', fileName: '' });
-    } finally {
-      event.target.value = '';
     }
   };
 
@@ -942,27 +827,12 @@ const App = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <section className="xl:col-span-2 bg-white rounded-3xl shadow-xl border border-slate-200 p-4 space-y-3">
           <p className="font-black text-sm">Perfil do jovem</p>
-          <form onSubmit={saveChildProfile} className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-4 items-start">
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-center">
-              <div className="mx-auto w-32 h-32 rounded-full p-[4px] bg-gradient-to-br from-sky-400 via-indigo-500 to-rose-400 shadow-lg">
-                <div className="w-full h-full rounded-full overflow-hidden border border-white/80 bg-white">
-                  {childForm.photoUrl ? <img src={childForm.photoUrl} alt={childForm.displayName || 'Jovem'} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-slate-400 uppercase">Sem foto</div>}
-                </div>
-              </div>
-              <label className={`mt-4 flex cursor-pointer items-center justify-center rounded-2xl border border-dashed px-4 py-3 text-sm font-black transition-colors ${childPhotoState.loading ? 'border-slate-200 bg-slate-100 text-slate-400' : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50'}`}>
-                <input type="file" accept="image/*" className="hidden" onChange={handleChildPhotoUpload} disabled={childPhotoState.loading} />
-                {childPhotoState.loading ? 'Preparando foto...' : 'Enviar nova foto'}
-              </label>
-              <p className="mt-2 text-[11px] font-semibold text-slate-500">{childPhotoState.fileName || 'PNG, JPG ou WebP'}</p>
-              {childForm.photoUrl ? <button type="button" onClick={() => { setChildForm((state) => ({ ...state, photoUrl: '' })); setChildPhotoState((state) => ({ ...state, error: '', fileName: '' })); }} className="mt-3 text-xs font-black uppercase tracking-wide text-rose-600">Remover foto</button> : null}
-              {childPhotoState.error ? <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700">{childPhotoState.error}</div> : null}
-            </div>
-            <div className="space-y-3">
+          <form onSubmit={saveChildProfile} className="space-y-3">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
               <input value={childForm.displayName} onChange={(event) => setChildForm((state) => ({ ...state, displayName: event.target.value }))} placeholder="Nome de exibicao" className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm font-semibold" />
-              <input value={childForm.photoUrl} onChange={(event) => { setChildForm((state) => ({ ...state, photoUrl: event.target.value })); setChildPhotoState((state) => ({ ...state, error: '' })); }} placeholder="URL da foto (opcional)" className="w-full border border-slate-200 rounded-2xl px-3 py-2 text-sm font-semibold" />
-              <p className="text-xs font-semibold text-slate-500">A foto enviada pelo dispositivo salva na hora. Use Salvar perfil para nome ou URL manual.</p>
-              <button type="submit" disabled={childPhotoState.loading} className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-slate-900 text-white text-sm font-black disabled:opacity-60"><Save size={16} /> Salvar perfil</button>
+              <p className="mt-2 text-xs font-semibold text-slate-500">Esse nome aparece no topo da agenda e nas referencias do jovem dentro do painel.</p>
             </div>
+            <button type="submit" className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-slate-900 text-white text-sm font-black"><Save size={16} /> Salvar perfil</button>
           </form>
         </section>
 
@@ -1073,12 +943,8 @@ const App = () => {
             <div className="flex items-center gap-3 min-w-0">
               <div className="relative shrink-0">
                 <div className="w-14 h-14 md:w-20 md:h-20 rounded-full p-[2px] bg-gradient-to-br from-sky-400 via-indigo-500 to-rose-400 shadow-lg">
-                  <div className="w-full h-full rounded-full overflow-hidden border border-white/80 bg-slate-100">
-                    {childProfile?.photoUrl ? (
-                      <img src={childProfile.photoUrl} alt={childProfile.displayName || 'Jovem'} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-400 text-[9px] font-black uppercase">Foto</div>
-                    )}
+                  <div className="w-full h-full rounded-full border border-white/80 bg-slate-100 flex items-center justify-center text-slate-500">
+                    <User size={28} className="md:w-9 md:h-9" />
                   </div>
                 </div>
                 <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-white bg-slate-900 text-white shadow-md">

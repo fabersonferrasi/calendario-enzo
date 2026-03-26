@@ -141,7 +141,6 @@ const initialData = {
   childProfile: {
     id: 1,
     displayName: 'Enzo',
-    photoUrl: 'https://images.unsplash.com/photo-1503919545889-aef636e10ad4?auto=format&fit=crop&w=400&q=80',
   },
   adminUser: {
     id: 1,
@@ -154,30 +153,30 @@ const initialData = {
 const getStoredToken = () => window.localStorage.getItem(SESSION_KEY);
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
-const inferImageMimeType = (file) => {
-  const directType = String(file?.type || '').toLowerCase();
-  if (directType.startsWith('image/')) return directType;
+const migrateLocalDb = (db) => {
+  if (!db?.childProfile || !Object.prototype.hasOwnProperty.call(db.childProfile, 'photoUrl')) {
+    return { changed: false, value: db };
+  }
 
-  const name = String(file?.name || '').toLowerCase();
-  if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
-  if (name.endsWith('.png')) return 'image/png';
-  if (name.endsWith('.webp')) return 'image/webp';
-  if (name.endsWith('.gif')) return 'image/gif';
-  if (name.endsWith('.heic')) return 'image/heic';
-  if (name.endsWith('.heif')) return 'image/heif';
-  return '';
+  const { photoUrl: _photoUrl, ...childProfile } = db.childProfile;
+  return {
+    changed: true,
+    value: {
+      ...db,
+      childProfile,
+    },
+  };
 };
-const fileToDataUrl = (file) => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(String(reader.result || ''));
-  reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem.'));
-  reader.readAsDataURL(file);
-});
 
 const getLocalDb = () => {
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored) {
-    return JSON.parse(stored);
+    const parsed = JSON.parse(stored);
+    const migrated = migrateLocalDb(parsed);
+    if (migrated.changed) {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated.value));
+    }
+    return migrated.value;
   }
   const seeded = clone(initialData);
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
@@ -189,7 +188,7 @@ const setLocalDb = (value) => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
   } catch (error) {
     if (error?.name === 'QuotaExceededError') {
-      throw new Error('A foto ficou grande demais para salvar. Tente outra imagem menor.');
+      throw new Error('Nao foi possivel salvar os dados no navegador.');
     }
     throw error;
   }
@@ -378,18 +377,6 @@ const localApi = {
     db.childProfile = {
       ...db.childProfile,
       displayName: String(payload.displayName || '').trim(),
-      photoUrl: String(payload.photoUrl || '').trim(),
-    };
-    setLocalDb(db);
-    return clone(db.childProfile);
-  },
-  uploadChildPhoto: async (file) => {
-    ensureAuthenticated();
-    const db = getLocalDb();
-    const photoUrl = await fileToDataUrl(file);
-    db.childProfile = {
-      ...db.childProfile,
-      photoUrl,
     };
     setLocalDb(db);
     return clone(db.childProfile);
@@ -423,7 +410,7 @@ const request = async (url, options = {}) => {
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     if (response.status === 413) {
-      throw new Error('A foto ficou grande demais para salvar. Tente outra imagem menor.');
+      throw new Error('Os dados enviados sao grandes demais para salvar.');
     }
     if (response.status === 404 || response.status >= 500) {
       const fallbackError = new Error('API_UNAVAILABLE');
@@ -431,49 +418,6 @@ const request = async (url, options = {}) => {
       throw fallbackError;
     }
     throw new Error(payload?.error || (response.status === 401 ? 'Usuario ou senha invalidos.' : 'Nao foi possivel concluir a solicitacao.'));
-  }
-
-  return payload || {};
-};
-
-const requestBinary = async (url, file) => {
-  const headers = {};
-  const token = getStoredToken();
-  const mimeType = inferImageMimeType(file);
-
-  if (mimeType) {
-    headers['Content-Type'] = mimeType;
-  }
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  let response;
-  try {
-    response = await fetch(url, {
-      method: 'POST',
-      cache: 'no-store',
-      headers,
-      body: file,
-    });
-  } catch (_error) {
-    const fallbackError = new Error('API_UNAVAILABLE');
-    fallbackError.code = 'API_UNAVAILABLE';
-    throw fallbackError;
-  }
-
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    if (response.status === 413) {
-      throw new Error('A foto ficou grande demais para enviar. Tente outra imagem menor.');
-    }
-    if (response.status === 404 || response.status >= 500) {
-      const fallbackError = new Error('API_UNAVAILABLE');
-      fallbackError.code = 'API_UNAVAILABLE';
-      throw fallbackError;
-    }
-    throw new Error(payload?.error || 'Nao foi possivel enviar a foto.');
   }
 
   return payload || {};
@@ -523,10 +467,5 @@ export const api = {
     () => request('/api/admin/child-profile', { method: 'PUT', body: JSON.stringify(payload) }),
     () => localApi.updateChildProfile(payload),
     'Nao foi possivel salvar o perfil no servidor agora. Tente novamente em alguns instantes.',
-  ),
-  uploadChildPhoto: (file) => withAdminPersistenceFallback(
-    () => requestBinary('/api/admin/child-photo', file),
-    () => localApi.uploadChildPhoto(file),
-    'Nao foi possivel salvar a foto no servidor agora. Tente novamente em alguns instantes.',
   ),
 };

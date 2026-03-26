@@ -5,7 +5,6 @@ import { db, dbPath, verifyPassword } from './db.js';
 
 const SESSION_TTL_HOURS = 12;
 const distPath = path.resolve(process.cwd(), 'dist');
-const uploadsDir = path.join(path.dirname(dbPath), 'uploads');
 const AUTH_SECRET = process.env.AUTH_SECRET || 'agenda-enzo-local-auth-secret';
 
 const parentSelect = `
@@ -41,26 +40,6 @@ const readJsonBody = async (req) => {
   }
 
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-};
-
-const readRawBody = async (req, maxBytes = 6 * 1024 * 1024) => {
-  const chunks = [];
-  let totalBytes = 0;
-
-  for await (const chunk of req) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    totalBytes += buffer.length;
-
-    if (totalBytes > maxBytes) {
-      const error = new Error('PAYLOAD_TOO_LARGE');
-      error.statusCode = 413;
-      throw error;
-    }
-
-    chunks.push(buffer);
-  }
-
-  return Buffer.concat(chunks);
 };
 
 const listParents = () => db.prepare(`${parentSelect} ORDER BY p.id`).all();
@@ -122,8 +101,7 @@ const getWeekendConfig = () => db.prepare(`
 const getChildProfile = () => db.prepare(`
   SELECT
     cp.id,
-    cp.display_name AS displayName,
-    cp.photo_url AS photoUrl
+    cp.display_name AS displayName
   FROM child_profile cp
   WHERE cp.id = 1
 `).get();
@@ -177,7 +155,6 @@ const sanitizeWeekendConfig = (body) => ({
 
 const sanitizeChildProfile = (body) => ({
   display_name: String(body.displayName || '').trim(),
-  photo_url: String(body.photoUrl || '').trim(),
 });
 
 const encodeBase64Url = (value) => Buffer.from(value).toString('base64url');
@@ -262,36 +239,6 @@ const requireAuth = (req, res) => {
   return authorized;
 };
 
-const serveUploadFile = (filename, res) => {
-  const safeName = path.basename(filename);
-  if (!safeName || safeName !== filename) {
-    notFound(res);
-    return;
-  }
-
-  const targetPath = path.join(uploadsDir, safeName);
-  if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isFile()) {
-    notFound(res);
-    return;
-  }
-
-  const ext = path.extname(targetPath).toLowerCase();
-  const contentTypes = {
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.png': 'image/png',
-    '.webp': 'image/webp',
-    '.gif': 'image/gif',
-    '.heic': 'image/heic',
-    '.heif': 'image/heif',
-  };
-
-  res.statusCode = 200;
-  res.setHeader('Content-Type', contentTypes[ext] || 'application/octet-stream');
-  res.setHeader('Cache-Control', 'no-store, max-age=0');
-  fs.createReadStream(targetPath).pipe(res);
-};
-
 const serveStatic = (req, res) => {
   const requestedPath = req.url === '/' ? '/index.html' : req.url;
   const filePath = path.join(distPath, requestedPath === '/' ? 'index.html' : requestedPath);
@@ -356,11 +303,6 @@ export const handleRequest = async (req, res, options = {}) => {
       return;
     }
 
-    if (req.method === 'GET' && pathname.startsWith('/api/uploads/')) {
-      serveUploadFile(pathname.slice('/api/uploads/'.length), res);
-      return;
-    }
-
     if (req.method === 'POST' && pathname === '/api/auth/login') {
       const body = await readJsonBody(req);
       const username = String(body.username || '').trim();
@@ -407,7 +349,7 @@ export const handleRequest = async (req, res, options = {}) => {
       const authorized = requireAuth(req, res);
       if (!authorized) return;
 
-      if ((req.method === 'POST' || req.method === 'PUT') && pathname !== '/api/admin/child-photo') {
+      if (req.method === 'POST' || req.method === 'PUT') {
         req.body = await readJsonBody(req);
       }
 
@@ -529,61 +471,9 @@ export const handleRequest = async (req, res, options = {}) => {
         }
         db.prepare(`
           UPDATE child_profile
-          SET display_name = @display_name, photo_url = @photo_url
+          SET display_name = @display_name
           WHERE id = 1
         `).run(payload);
-        json(res, 200, getChildProfile());
-        return;
-      }
-
-      if (req.method === 'POST' && pathname === '/api/admin/child-photo') {
-        const contentType = String(req.headers['content-type'] || '').toLowerCase();
-        if (!contentType.startsWith('image/')) {
-          json(res, 400, { error: 'Envie um arquivo de imagem valido.' });
-          return;
-        }
-
-        let fileBuffer;
-        try {
-          fileBuffer = await readRawBody(req);
-        } catch (error) {
-          if (error?.statusCode === 413) {
-            json(res, 413, { error: 'A foto enviada e grande demais.' });
-            return;
-          }
-          throw error;
-        }
-
-        if (!fileBuffer.length) {
-          json(res, 400, { error: 'A imagem enviada esta vazia.' });
-          return;
-        }
-
-        const extensionMap = {
-          'image/jpeg': 'jpg',
-          'image/jpg': 'jpg',
-          'image/png': 'png',
-          'image/webp': 'webp',
-          'image/gif': 'gif',
-          'image/heic': 'heic',
-          'image/heif': 'heif',
-        };
-        const extension = extensionMap[contentType] || 'jpg';
-        const filename = `child-profile.${extension}`;
-        const photoUrl = `/api/uploads/${filename}?v=${Date.now()}`;
-
-        fs.mkdirSync(uploadsDir, { recursive: true });
-        for (const entry of fs.readdirSync(uploadsDir)) {
-          if (entry.startsWith('child-profile.')) {
-            const entryPath = path.join(uploadsDir, entry);
-            if (fs.statSync(entryPath).isFile()) {
-              fs.unlinkSync(entryPath);
-            }
-          }
-        }
-
-        fs.writeFileSync(path.join(uploadsDir, filename), fileBuffer);
-        db.prepare('UPDATE child_profile SET photo_url = ? WHERE id = 1').run(photoUrl);
         json(res, 200, getChildProfile());
         return;
       }
