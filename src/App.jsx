@@ -13,6 +13,7 @@ import {
   Info,
   LogIn,
   LogOut,
+  Menu,
   Pencil,
   Save,
   Shield,
@@ -129,6 +130,7 @@ const App = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [modalDate, setModalDate] = useState(null);
   const [calendarView, setCalendarView] = useState('day');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [page, setPage] = useState(() => (window.location.hash === '#admin' || getStoredAdminIntent() ? 'admin' : 'calendar'));
 
   const [calendarData, setCalendarData] = useState(null);
@@ -221,6 +223,10 @@ const App = () => {
     return () => window.removeEventListener('hashchange', syncPageFromHash);
   }, []);
 
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [page]);
+
   const selectedRule = useMemo(() => getDisplayRule(selectedDate, calendarData), [selectedDate, calendarData]);
   const modalRule = useMemo(() => (modalDate ? getDisplayRule(modalDate, calendarData) : null), [modalDate, calendarData]);
   const parentById = useMemo(() => Object.fromEntries((calendarData?.parents || []).map((parent) => [parent.id, parent])), [calendarData]);
@@ -269,6 +275,7 @@ const App = () => {
     } catch (_error) {}
     window.localStorage.removeItem('agenda_enzo_token');
     setAdminIntent(false);
+    setMobileMenuOpen(false);
     setSession(null);
     setAdminState({ loading: false, error: '', message: '' });
     setPage('calendar');
@@ -277,6 +284,7 @@ const App = () => {
 
   const openAdminPage = async () => {
     setAdminIntent(true);
+    setMobileMenuOpen(false);
     setPage('admin');
     setAdminState((state) => ({ ...state, message: '', error: '' }));
     if (!session && window.localStorage.getItem('agenda_enzo_token')) {
@@ -805,15 +813,14 @@ const App = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 font-sans text-slate-900 pb-24 md:pb-10">
       <div className="max-w-6xl mx-auto md:p-4 space-y-4">
-        <header className="bg-white text-slate-900 p-4 md:rounded-3xl shadow-lg border border-slate-200 sticky top-0 z-40">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-900 text-white rounded-xl shadow-lg"><CalendarIcon size={24} /></div>
-              <div>
-                <h1 className="text-xl font-black tracking-tight leading-none">Agenda Enzo</h1>
-              </div>
+        <header className="relative bg-white text-slate-900 p-3 md:p-4 md:rounded-3xl shadow-lg border border-slate-200 sticky top-0 z-40">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 bg-slate-900 text-white rounded-xl shadow-lg"><CalendarIcon size={20} /></div>
+              <h1 className="text-base md:text-xl font-black tracking-tight leading-none truncate">Agenda Enzo</h1>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+
+            <div className="hidden md:flex flex-wrap items-center gap-2">
               {page === 'calendar' ? (
                 <button onClick={openAdminPage} aria-label="Abrir admin" title="Admin" className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-colors text-sm font-bold"><Shield size={16} /></button>
               ) : (
@@ -823,7 +830,33 @@ const App = () => {
                 <button onClick={handleLogout} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 transition-colors text-sm font-bold text-rose-700"><LogOut size={16} /> Sair</button>
               ) : null}
             </div>
+
+            <button type="button" onClick={() => setMobileMenuOpen((value) => !value)} className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-colors text-slate-700">
+              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
           </div>
+
+          {mobileMenuOpen ? (
+            <div className="md:hidden mt-3 bg-slate-50 border border-slate-200 rounded-2xl p-2 space-y-2">
+              {page === 'calendar' ? (
+                <button onClick={openAdminPage} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-sm font-black">
+                  <Shield size={16} />
+                  Admin
+                </button>
+              ) : (
+                <button onClick={() => { setAdminIntent(false); setMobileMenuOpen(false); setPage('calendar'); }} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-sm font-black">
+                  <ArrowLeft size={16} />
+                  Voltar para agenda
+                </button>
+              )}
+              {session ? (
+                <button onClick={handleLogout} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-sm font-black text-rose-700">
+                  <LogOut size={16} />
+                  Sair
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </header>
 
         {page === 'calendar' ? renderCalendar() : (session ? renderAdminCrud() : renderAdminLogin())}
